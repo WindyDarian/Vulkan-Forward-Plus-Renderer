@@ -1,0 +1,33 @@
+================================================================================
+I followed the tutorial from vulkan-tutorial.com when creating the code base.
+See https://github.com/Overv/VulkanTutorial
+Original codes from the tutorial are of CC0 1.0 Universal license.
+
+================================================================================
+Libraries
+--------------------------------------------------------------------------------
+GLFW:
+    See COPYING.txt
+GLM:
+    See copying.txt
+stb:
+    From https://github.com/nothings/stb
+    Public Domain
+tinyobjloader:
+    From https://github.com/syoyo/tinyobjloader
+    MIT License
+================================================================================
+
+================================================================================
+Resources
+--------------------------------------------------------------------------------
+Vulkan_Project\content\chalet.obj &
+Vulkan_Project\content\chalet.jpg:
+    Chalet Hippolyte Chassande Baroz by Gaël is licensed under CC Attribution
+    https://skfb.ly/HDVU
+
+Vulkan_Project\content\jumpin_windy.png:
+    (not very 3rd-party but) jumpin_windy() by Windy Darian
+    licensed under Creative Commons Attribution-Noncommercial-Share Alike 3.0
+    http://windydarian.deviantart.com/art/jumpin-windy-2014-631001375
+================================================================================

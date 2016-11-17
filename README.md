@@ -35,3 +35,18 @@ cmake ..
 make
 ```
 copy `src/content` to `build` folder, then run the executable
+
+### Third-Party Credits
+
+#### References:
+* [Vulkan Tutorial by Alexander Overvoorde](https://vulkan-tutorial.com)
+
+#### Libraries
+* [CMake](https://cmake.org/)
+* [GLFW](http://www.glfw.org/)
+* [GLM](http://glm.g-truc.net/0.9.8/index.html)
+* [stb_image](https://github.com/nothings/stb)
+* [tinyobjloader](https://github.com/syoyo/tinyobjloader)
+
+#### Assets
+* [Chalet Hippolyte Chassande Baroz by Gaël](https://skfb.ly/HDVU)
