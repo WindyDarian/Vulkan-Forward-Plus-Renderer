@@ -12,7 +12,7 @@ namespace util
 	std::string getContentPath(str_t&& filename)
 	{
 		static std::string content_folder{ "../content/" };
-		return content_folder + filename;
+		return content_folder + std::forward<str_t>(filename);
 	}
 
 	std::vector<char> readFile(const std::string& filename);

@@ -73,6 +73,9 @@ public:
 		swap(first.object, second.object);
 	}
 
+	void operator=(const VDeleter<T>&) = delete;
+	VDeleter(const VDeleter<T>&) = delete;
+
 private:
 	T object;
 	const std::function<void(T)> deleter;
@@ -85,7 +88,4 @@ private:
 		}
 		object = VK_NULL_HANDLE;
 	}
-
-	void operator=(const VDeleter<T>&) = delete;
-	VDeleter(const VDeleter<T>&) = delete;
 };

@@ -3,4 +3,10 @@
 
 #pragma once
 
-// TODO
+// TODO: I think I need to write (or find) a buffer memory management lib for Vulkan
+
+
+class StaticModel
+{
+	
+};
