@@ -1,6 +1,10 @@
+// Copyright(c) 2016 Ruoyu Fan (Windy Darian), Xueyin Wan
+// MIT License.
+
 #pragma once
 
 #include "VDeleter.h"
+#include "util.h"
 
 #include <vulkan/vulkan.h>
 
@@ -33,7 +37,7 @@ struct Vertex
 	static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions()
 	{
 		std::array<VkVertexInputAttributeDescription, 3> attr_descriptions = {};
-		attr_descriptions[0].binding = 0; 
+		attr_descriptions[0].binding = 0;
 		attr_descriptions[0].location = 0;
 		attr_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
 		attr_descriptions[0].offset = offsetof(Vertex, pos); //bytes of a member since beginning of struct
@@ -49,7 +53,7 @@ struct Vertex
 		return attr_descriptions;
 	}
 
-	bool operator==(const Vertex& other) const 
+	bool operator==(const Vertex& other) const
 	{
 		return pos == other.pos && color == other.color && tex_coord == other.tex_coord;
 	}
@@ -57,9 +61,9 @@ struct Vertex
 
 namespace std {
 	// hash function for Vertex
-	template<> struct hash<Vertex> 
+	template<> struct hash<Vertex>
 	{
-		size_t operator()(Vertex const& vertex) const 
+		size_t operator()(Vertex const& vertex) const
 		{
 			return ((hash<glm::vec3>()(vertex.pos) ^
 				(hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^
@@ -168,8 +172,8 @@ private:
 	const int WINDOW_HEIGHT = 1080;
 	const bool WINDOW_RESIZABLE = true;
 
-	const std::string MODEL_PATH = "content/chalet.obj";
-	const std::string TEXTURE_PATH = "content/chalet.jpg";
+	const std::string MODEL_PATH = util::getContentPath("chalet.obj");
+	const std::string TEXTURE_PATH = util::getContentPath("chalet.jpg");
 
 	std::vector<Vertex> vertices;
 	std::vector<uint32_t> vertex_indices;
@@ -190,7 +194,7 @@ private:
 	//};
 	//const std::vector<uint32_t> vertex_indices = {
 	//	 0, 1, 2, 2, 3, 0
-	//	, 4, 5, 6, 6, 7, 4 
+	//	, 4, 5, 6, 6, 7, 4
 	//};
 
 #ifdef NDEBUG
@@ -243,12 +247,12 @@ private:
 	void drawFrame();
 
 	void createShaderModule(const std::vector<char>& code, VkShaderModule* p_shader_module);
-	
+
 	bool checkValidationLayerSupport();
 	std::vector<const char*> getRequiredExtensions();
 	bool isDeviceSuitable(VkPhysicalDevice device);
 	bool checkDeviceExtensionSupport(VkPhysicalDevice device);
-	
+
 	VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& available_formats);
 	VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& available_present_modes);
 	VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
@@ -283,4 +287,3 @@ private:
 	void recordCopyImage(VkCommandBuffer command_buffer, VkImage src_image, VkImage dst_image, uint32_t width, uint32_t height);
 	void recordTransitImageLayout(VkCommandBuffer command_buffer, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout);
 };
-

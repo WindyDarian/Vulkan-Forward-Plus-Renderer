@@ -1,6 +1,6 @@
-# Vulkan Forward+ Renderer using compute shader
+# VFPR - a Vulkan Forward+ Renderer using compute shader
 
-A Forward+ rendering pipeline in Vulkan. A final project for __CIS565: GPU Programming__ at University of Pennsylvania
+A Forward+ (tiled forward) rendering pipeline in Vulkan. A final project for __CIS565: GPU Programming__ at University of Pennsylvania
 
 WORK IN PROGRESS!
 
@@ -15,15 +15,15 @@ Members:
 Use CMake to build the program.
 
 #### Windows
-Make sure you have Vulkan SDK and Visual Studio 2015 or up, then:
+1. Make sure you have Vulkan SDK and Visual Studio 2015 or up, then:
 ```
 mkdir build
 cd build
 cmake-gui ..
 ```
-And `Configure`(select `"Visual Studio 2015 x64"`), `Generate`, then you have Visual Studio project files.
+2. And `Configure`(select `"Visual Studio 2015 x64"`), `Generate`, then you have Visual Studio project files.
 
-Remember to copy `src/content` to `build` folder in order to run it.
+3. Set `vfpr` as startup project and build solution
 
 
 #### Linux
@@ -34,7 +34,7 @@ cd build
 cmake ..
 make
 ```
-copy `src/content` to `build` folder, then run the executable
+
 
 ### Third-Party Credits
 
