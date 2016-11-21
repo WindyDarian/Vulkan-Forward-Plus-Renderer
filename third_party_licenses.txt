@@ -21,12 +21,17 @@ tinyobjloader:
 ================================================================================
 Resources
 --------------------------------------------------------------------------------
-Vulkan_Project\content\chalet.obj &
-Vulkan_Project\content\chalet.jpg:
+content/sponza/ :
+    Sponza modeled by Marko Dabrovic (CIS565 simplified version)
+    copyright: Marko Dabrovic / cgtechniques.com 2002
+    http://hdri.cgtechniques.com/~sponza/files/
+
+content\chalet.obj &
+  content\chalet.jpg:
     Chalet Hippolyte Chassande Baroz by Gaël is licensed under CC Attribution
     https://skfb.ly/HDVU
 
-Vulkan_Project\content\jumpin_windy.png:
+content\jumpin_windy.png:
     (not very 3rd-party but) jumpin_windy() by Windy Darian
     licensed under Creative Commons Attribution-Noncommercial-Share Alike 3.0
     http://windydarian.deviantart.com/art/jumpin-windy-2014-631001375

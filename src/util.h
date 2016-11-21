@@ -52,8 +52,11 @@ namespace util
 		return content_folder + std::forward<str_t>(filename);
 	}
 
-	const std::string MODEL_PATH = util::getContentPath("chalet.obj");
-	const std::string TEXTURE_PATH = util::getContentPath("chalet.jpg");
+	//const std::string MODEL_PATH = util::getContentPath("chalet.obj");
+	//const std::string TEXTURE_PATH = util::getContentPath("chalet.jpg");
+	const std::string MODEL_PATH = util::getContentPath("sponza/sponza.obj");
+	const std::string TEXTURE_PATH = util::getContentPath("sponza/color.jpg");
+
 
 	std::vector<char> readFile(const std::string& filename);
 

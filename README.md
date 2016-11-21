@@ -10,7 +10,18 @@ Members:
 * [Ruoyu Fan](http://windy.moe/portfolio)
 * [Xueyin Wan](https://github.com/xueyinw)
 
-### build
+## Milestones
+
+### Milestone 1 (11/21/2016)
+* Basic Vulkan framework including:
+  * basic forward rendering pipeline (adaptd from [Vulkan Tutorial by Alexander Overvoorde](https://vulkan-tutorial.com))
+  * mesh
+  * texture mapping
+  * lambert shading
+
+![](/screenshots/lambertian.jpg)
+
+## How to Build
 
 Use CMake to build the program.
 
@@ -36,9 +47,9 @@ make
 ```
 
 
-### Third-Party Credits
+## Third-Party Credits
 
-#### References:
+#### References
 * [Vulkan Tutorial by Alexander Overvoorde](https://vulkan-tutorial.com)
 
 #### Libraries
@@ -50,3 +61,4 @@ make
 
 #### Assets
 * [Chalet Hippolyte Chassande Baroz by Gaël](https://skfb.ly/HDVU)
+* [Sponza modeled by Marko Dabrovic](http://hdri.cgtechniques.com/~sponza/files/Sponza) (CIS565 simplified version) 

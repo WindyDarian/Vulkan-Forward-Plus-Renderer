@@ -24,10 +24,13 @@ out gl_PerVertex
 
 void main()
 {
+    //todo: calculate them in cpu...
+    mat4 mvp = transform.proj * transform.view * transform.model;
+    mat4 invtransmodel =  transpose(inverse(transform.model));
     //gl_Position = vec4(positions[gl_VertexIndex], 0.0, 1.0);
-    gl_Position = transform.proj * transform.view
-        * transform.model * vec4(in_position, 1.0);
+
+    gl_Position = mvp * vec4(in_position, 1.0);
     frag_color = in_color;
     frag_tex_coord = in_tex_coord;
-    frag_normal = in_normal;
+    frag_normal = normalize((invtransmodel * vec4(in_normal, 0.0)).xyz);
 }
