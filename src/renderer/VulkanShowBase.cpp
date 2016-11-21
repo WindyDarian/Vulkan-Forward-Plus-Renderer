@@ -3,13 +3,12 @@
 
 #include "VulkanShowBase.h"
 
+#include "vulkan_util.h"
+
 #include <glm/gtc/matrix_transform.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
-
-#define TINYOBJLOADER_IMPLEMENTATION
-#include <tiny_obj_loader.h>
 
 #include <iostream>
 #include <functional>
@@ -21,7 +20,8 @@
 #include <algorithm>
 #include <fstream>
 #include <chrono>
-#include <unordered_map>
+
+using util::Vertex;
 
 struct SwapChainSupportDetails
 {
@@ -192,7 +192,7 @@ void VulkanShowBase::initVulkan()
 	createTextureImage();
 	createTextureImageView();
 	createTextureSampler();
-	loadModel();
+	std::tie(vertices, vertex_indices) = util::loadModel();
 	// TODO: better to use a single memory allocation for multiple buffers
 	createVertexBuffer();
 	createIndexBuffer();
@@ -726,8 +726,8 @@ void VulkanShowBase::createGraphicsPipeline()
 	VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
 	vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
-	auto binding_description = Vertex::getBindingDesciption();
-	auto attr_description = Vertex::getAttributeDescriptions();
+	auto binding_description = vulkan_util::getVertexBindingDesciption();
+	auto attr_description = vulkan_util::getVertexAttributeDescriptions();
 
 	vertex_input_info.vertexBindingDescriptionCount = 1;
 	vertex_input_info.pVertexBindingDescriptions = &binding_description;
@@ -937,7 +937,7 @@ void VulkanShowBase::createTextureImage()
 	//	, &tex_width, &tex_height
 	//	, &tex_channels
 	//	, STBI_rgb_alpha);
-	stbi_uc * pixels = stbi_load(TEXTURE_PATH.c_str()
+	stbi_uc * pixels = stbi_load(util::TEXTURE_PATH.c_str()
 		, &tex_width, &tex_height
 		, &tex_channels
 		, STBI_rgb_alpha);
@@ -1021,48 +1021,6 @@ void VulkanShowBase::createTextureSampler()
 	if (vkCreateSampler(graphics_device, &sampler_info, nullptr, &texture_sampler) != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to create texture sampler!");
-	}
-}
-
-void VulkanShowBase::loadModel()
-{
-	tinyobj::attrib_t attrib;
-	std::vector<tinyobj::shape_t> shapes;
-	std::vector<tinyobj::material_t> materials;
-	std::string err;
-
-	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, MODEL_PATH.c_str()))
-	{
-		throw std::runtime_error(err);
-	}
-
-	std::unordered_map<Vertex, size_t> unique_vertices = {};
-	for (const auto& shape : shapes)
-	{
-		for (const auto& index : shape.mesh.indices)
-		{
-			Vertex vertex = {};
-
-			vertex.pos = {
-				attrib.vertices[3 * index.vertex_index + 0],
-				attrib.vertices[3 * index.vertex_index + 1],
-				attrib.vertices[3 * index.vertex_index + 2]
-			};
-
-			// since the y axis of obj's texture coordinate points up
-			vertex.tex_coord = {
-				attrib.texcoords[2 * index.texcoord_index + 0],
-				1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
-			};
-
-			if (unique_vertices.count(vertex) == 0)
-			{
-				unique_vertices[vertex] = vertices.size(); // auto incrementing size
-				vertices.push_back(vertex);
-			}
-
-			vertex_indices.push_back((uint32_t)unique_vertices[vertex]);
-		}
 	}
 }
 

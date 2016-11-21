@@ -23,16 +23,27 @@ find_package(Vulkan REQUIRED)
 
 set(SOURCE_FILES
     "src/main.cpp"
-    "src/VDeleter.h"
-    "src/VulkanShowBase.cpp"
-    "src/VulkanShowBase.h"
+    "src/renderer/vulkan_util.h"
+    "src/renderer/vulkan_util.cpp"
+    "src/renderer/VDeleter.h"
+    "src/renderer/VulkanShowBase.cpp"
+    "src/renderer/VulkanShowBase.h"
     "src/util.h"
     "src/util.cpp"
-    "src/StaticModel.h"
-    "src/StaticModel.cpp"
+    "src/scene.h"
+    "src/scene.cpp"
     )
 
 add_executable(${CMAKE_PROJECT_NAME} ${SOURCE_FILES})
+
+IF(MSVC)
+    # make it looks better in msvc
+    foreach(source IN LISTS SOURCE_FILES)
+        get_filename_component(source_path "${source}" PATH)
+        string(REPLACE "/" "\\" source_path_msvc "${source_path}")
+        source_group("${source_path_msvc}" FILES "${source}")
+    endforeach()
+ENDIF(MSVC)
 
 #target_link_libraries(${CMAKE_PROJECT_NAME} glfw ${GLFW_LIBRARIES})
 target_link_libraries(${CMAKE_PROJECT_NAME} glfw)

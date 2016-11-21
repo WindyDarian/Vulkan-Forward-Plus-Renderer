@@ -4,73 +4,15 @@
 #pragma once
 
 #include "VDeleter.h"
-#include "util.h"
+#include "../util.h"
 
 #include <vulkan/vulkan.h>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE // opengl's depth range was -1 to 1
-#include <glm/glm.hpp>
-#include <glm/gtx/hash.hpp>
-
 #include <vector>
 #include <array>
-
-struct Vertex
-{
-	glm::vec3 pos;
-	glm::vec3 color;
-	glm::vec2 tex_coord;
-
-	static VkVertexInputBindingDescription getBindingDesciption()
-	{
-		VkVertexInputBindingDescription binding_description = {};
-		binding_description.binding = 0; // index of the binding, defined in vertex shader
-		binding_description.stride = sizeof(Vertex);
-		binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX; // move to next data engty after each vertex
-		return binding_description;
-	}
-
-	static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions()
-	{
-		std::array<VkVertexInputAttributeDescription, 3> attr_descriptions = {};
-		attr_descriptions[0].binding = 0;
-		attr_descriptions[0].location = 0;
-		attr_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-		attr_descriptions[0].offset = offsetof(Vertex, pos); //bytes of a member since beginning of struct
-		attr_descriptions[1].binding = 0;
-		attr_descriptions[1].location = 1;
-		attr_descriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-		attr_descriptions[1].offset = offsetof(Vertex, color); //bytes of a member since beginning of struct
-		attr_descriptions[2].binding = 0;
-		attr_descriptions[2].location = 2;
-		attr_descriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-		attr_descriptions[2].offset = offsetof(Vertex, tex_coord);
-
-		return attr_descriptions;
-	}
-
-	bool operator==(const Vertex& other) const
-	{
-		return pos == other.pos && color == other.color && tex_coord == other.tex_coord;
-	}
-};
-
-namespace std {
-	// hash function for Vertex
-	template<> struct hash<Vertex>
-	{
-		size_t operator()(Vertex const& vertex) const
-		{
-			return ((hash<glm::vec3>()(vertex.pos) ^
-				(hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^
-				(hash<glm::vec2>()(vertex.tex_coord) << 1);
-		}
-	};
-}
 
 struct UniformBufferObject
 {
@@ -172,30 +114,13 @@ private:
 	const int WINDOW_HEIGHT = 1080;
 	const bool WINDOW_RESIZABLE = true;
 
-	const std::string MODEL_PATH = util::getContentPath("chalet.obj");
-	const std::string TEXTURE_PATH = util::getContentPath("chalet.jpg");
-
-	std::vector<Vertex> vertices;
+	
+	std::vector<util::Vertex> vertices;
 	std::vector<uint32_t> vertex_indices;
 
 	float total_time_past = 0.0f;
 	int total_frames = 0;
 
-	//const std::vector<Vertex> vertices = {
-	//	{ { -0.5f, -0.5f, 0.0f }, { 1.0f, 0.0f, 0.0f }, {0.0f, 0.0f} },
-	//	{ { 0.5f, -0.5f, 0.0f }, { 0.0f, 1.0f, 0.0f }, {0.0f, 1.0f} },
-	//	{ { 0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, {1.0f, 1.0f} },
-	//	{ { -0.5f, 0.5f, 0.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 0.0f} },
-
-	//	{ { -0.5f, -0.5f, -0.5f },{ 1.0f, 0.0f, 0.0f },{ 0.0f, 0.0f } },
-	//	{ { 0.5f, -0.5f, -0.5f },{ 0.0f, 1.0f, 0.0f },{ 1.0f, 0.0f } },
-	//	{ { 0.5f, 0.5f, -0.5f },{ 0.0f, 0.0f, 1.0f },{ 1.0f, 1.0f } },
-	//	{ { -0.5f, 0.5f, -0.5f },{ 1.0f, 1.0f, 1.0f },{ 0.0f, 1.0f } }
-	//};
-	//const std::vector<uint32_t> vertex_indices = {
-	//	 0, 1, 2, 2, 3, 0
-	//	, 4, 5, 6, 6, 7, 4
-	//};
 
 #ifdef NDEBUG
 	// if not debugging
