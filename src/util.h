@@ -9,28 +9,39 @@
 #include <string>
 #include <vector>
 #include <tuple>
+#include <memory>
 
 namespace util
 {
+	template <class T>
+	void hash_combine(std::size_t& seed, const T& v)
+	{
+		std::hash<T> hasher;
+		seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+	}
 
 	struct Vertex
 	{
 		glm::vec3 pos;
 		glm::vec3 color;
 		glm::vec2 tex_coord;
+		glm::vec3 normal;
 
 		using index_t = uint32_t;
 
 		bool operator==(const Vertex& other) const noexcept
 		{
-			return pos == other.pos && color == other.color && tex_coord == other.tex_coord;
+			return pos == other.pos && color == other.color && tex_coord == other.tex_coord && normal == other.normal;
 		}
 
 		size_t hash() const
 		{
-			return ((std::hash<glm::vec3>()(pos) ^
-				(std::hash<glm::vec3>()(color) << 1)) >> 1) ^
-				(std::hash<glm::vec2>()(tex_coord) << 1);
+			size_t seed = 0;
+			hash_combine(seed, pos);
+			hash_combine(seed, color);
+			hash_combine(seed, tex_coord);
+			hash_combine(seed, normal);
+			return seed;
 		}
 	};
 
@@ -41,11 +52,14 @@ namespace util
 		return content_folder + std::forward<str_t>(filename);
 	}
 
-	std::vector<char> readFile(const std::string& filename);
-
-	std::tuple<std::vector<Vertex>, std::vector<Vertex::index_t>> loadModel();
-
 	const std::string MODEL_PATH = util::getContentPath("chalet.obj");
 	const std::string TEXTURE_PATH = util::getContentPath("chalet.jpg");
+
+	std::vector<char> readFile(const std::string& filename);
+
+	// returns tuple(vertex vector, index vector)
+	std::tuple<std::vector<Vertex>, std::vector<Vertex::index_t>> loadModel();
+
+
 }
 

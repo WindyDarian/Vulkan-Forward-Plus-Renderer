@@ -94,12 +94,6 @@ private:
 	VDeleter<VkImageView> texture_image_view{ graphics_device, vkDestroyImageView };
 	VDeleter<VkSampler> texture_sampler{ graphics_device, vkDestroySampler };
 
-	// vertex buffer
-	VDeleter<VkBuffer> vertex_buffer{ graphics_device, vkDestroyBuffer };
-	VDeleter<VkDeviceMemory> vertex_buffer_memory{ graphics_device, vkFreeMemory };
-	VDeleter<VkBuffer> index_buffer{ graphics_device, vkDestroyBuffer };
-	VDeleter<VkDeviceMemory> index_buffer_memory{ graphics_device, vkFreeMemory };
-
 	// uniform buffer and descriptor
 	VDeleter<VkBuffer> uniform_staging_buffer{ graphics_device, vkDestroyBuffer };
 	VDeleter<VkDeviceMemory> uniform_staging_buffer_memory{ graphics_device, vkFreeMemory };
@@ -109,11 +103,15 @@ private:
 	VDeleter<VkDescriptorPool> descriptor_pool{ graphics_device, vkDestroyDescriptorPool };
 	VkDescriptorSet descriptor_set;
 
+	// vertex buffer
+	VDeleter<VkBuffer> vertex_buffer{ this->graphics_device, vkDestroyBuffer };
+	VDeleter<VkDeviceMemory> vertex_buffer_memory{ graphics_device, vkFreeMemory };
+	VDeleter<VkBuffer> index_buffer{ graphics_device, vkDestroyBuffer };
+	VDeleter<VkDeviceMemory> index_buffer_memory{ graphics_device, vkFreeMemory };
 
 	const int WINDOW_WIDTH = 1920;
 	const int WINDOW_HEIGHT = 1080;
 	const bool WINDOW_RESIZABLE = true;
-
 	
 	std::vector<util::Vertex> vertices;
 	std::vector<uint32_t> vertex_indices;
@@ -159,7 +157,6 @@ private:
 	void createTextureImage();
 	void createTextureImageView();
 	void createTextureSampler();
-	void loadModel();
 	void createVertexBuffer();
 	void createIndexBuffer();
 	void createUniformBuffer();

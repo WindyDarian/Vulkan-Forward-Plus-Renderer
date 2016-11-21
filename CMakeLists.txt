@@ -23,6 +23,7 @@ find_package(Vulkan REQUIRED)
 
 set(SOURCE_FILES
     "src/main.cpp"
+    "src/third_party.cpp"
     "src/renderer/vulkan_util.h"
     "src/renderer/vulkan_util.cpp"
     "src/renderer/VDeleter.h"

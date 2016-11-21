@@ -31,7 +31,6 @@ public:
 		: object(VK_NULL_HANDLE)
 		, deleter( [&device, deletef](T obj) { deletef(device, obj, nullptr); } )
 	{}
-
 	//// Create a VDeleter by copying deleter function (not the object) from a template.
 	//static VDeleter<T> createByCopyingDeleter(const VDeleter<T>& other)
 	//{

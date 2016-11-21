@@ -9,6 +9,6 @@ namespace vulkan_util
 {
 	VkVertexInputBindingDescription getVertexBindingDesciption();
 
-	std::array<VkVertexInputAttributeDescription, 3> getVertexAttributeDescriptions();
+	std::array<VkVertexInputAttributeDescription, 4> getVertexAttributeDescriptions();
 }
 

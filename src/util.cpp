@@ -3,12 +3,12 @@
 
 #include "util.h"
 
-#define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
 
 #include <fstream>
 #include <unordered_map>
 #include <tuple>
+#include <array>
 
 // TODO
 
@@ -45,6 +45,7 @@ namespace std {
 
 std::tuple<std::vector<util::Vertex>, std::vector<util::Vertex::index_t>> util::loadModel()
 {
+	// TODO: I need a normal index for flat shading models
 	std::vector<Vertex> vertices;
 	std::vector<util::Vertex::index_t> vertex_indices;
 
@@ -58,12 +59,27 @@ std::tuple<std::vector<util::Vertex>, std::vector<util::Vertex::index_t>> util::
 		throw std::runtime_error(err);
 	}
 
+	bool has_vertex_normal = attrib.normals.size() > 0;
+
 	std::unordered_map<Vertex, size_t> unique_vertices = {};
+	auto append_vertex = [&vertices, &vertex_indices, &unique_vertices](const Vertex& vertex)
+	{
+		if (unique_vertices.count(vertex) == 0)
+		{
+			unique_vertices[vertex] = vertices.size(); // auto incrementing size
+			vertices.push_back(vertex);
+		}
+
+		vertex_indices.push_back(static_cast<util::Vertex::index_t>(unique_vertices[vertex]));
+	};
+
+	std::array<Vertex, 3> current_tri;
 	for (const auto& shape : shapes)
 	{
-		for (const auto& index : shape.mesh.indices)
+		for (auto i = 0; i < shape.mesh.indices.size(); i++)
 		{
-			Vertex vertex = {};
+			const auto& index = shape.mesh.indices[i];
+			auto & vertex = current_tri[i % 3];
 
 			vertex.pos = {
 				attrib.vertices[3 * index.vertex_index + 0],
@@ -77,13 +93,33 @@ std::tuple<std::vector<util::Vertex>, std::vector<util::Vertex::index_t>> util::
 				1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
 			};
 
-			if (unique_vertices.count(vertex) == 0)
+			if (has_vertex_normal)
 			{
-				unique_vertices[vertex] = vertices.size(); // auto incrementing size
-				vertices.push_back(vertex);
+				vertex.normal = {
+					attrib.normals[3 * index.normal_index + 0],
+					attrib.normals[3 * index.normal_index + 1],
+					attrib.normals[3 * index.normal_index + 2]
+				};
 			}
 
-			vertex_indices.push_back(static_cast<util::Vertex::index_t>(unique_vertices[vertex]));
+			if (has_vertex_normal)
+			{
+				append_vertex(vertex);
+			}
+			else
+			{
+				// we need to calculate the normal for the triangle
+				if (i % 3 == 2)
+				{
+					// last one in triangle
+					auto normal = glm::normalize(glm::cross(current_tri[1].pos - current_tri[0].pos, current_tri[2].pos - current_tri[0].pos));
+					for (auto& v : current_tri)
+					{
+						v.normal = normal;
+						append_vertex(v);
+					}
+				}
+			}
 		}
 	}
 

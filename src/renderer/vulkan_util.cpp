@@ -15,10 +15,10 @@ VkVertexInputBindingDescription vulkan_util::getVertexBindingDesciption()
 	return binding_description;
 }
 
-std::array<VkVertexInputAttributeDescription, 3> vulkan_util::getVertexAttributeDescriptions()
+std::array<VkVertexInputAttributeDescription, 4> vulkan_util::getVertexAttributeDescriptions()
 {
 	using util::Vertex;
-	std::array<VkVertexInputAttributeDescription, 3> attr_descriptions = {};
+	std::array<VkVertexInputAttributeDescription, 4> attr_descriptions = {};
 	attr_descriptions[0].binding = 0;
 	attr_descriptions[0].location = 0;
 	attr_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
@@ -31,6 +31,11 @@ std::array<VkVertexInputAttributeDescription, 3> vulkan_util::getVertexAttribute
 	attr_descriptions[2].location = 2;
 	attr_descriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
 	attr_descriptions[2].offset = offsetof(Vertex, tex_coord);
+	// normal
+	attr_descriptions[3].binding = 0;
+	attr_descriptions[3].location = 3;
+	attr_descriptions[3].format = VK_FORMAT_R32G32B32_SFLOAT;
+	attr_descriptions[3].offset = offsetof(Vertex, normal);
 
 	return attr_descriptions;
 }
