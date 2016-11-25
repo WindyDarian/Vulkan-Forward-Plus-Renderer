@@ -161,7 +161,7 @@ void VulkanShowBase::initWindow()
 	}
 
 	window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Vulkan Hello World", nullptr, nullptr);
-
+	
 	glfwSetWindowUserPointer(window, this);
 	glfwSetWindowSizeCallback(window, VulkanShowBase::onWindowResized);
 }

@@ -10,6 +10,11 @@ Members:
 * [Ruoyu Fan](http://windy.moe/portfolio)
 * [Xueyin Wan](https://github.com/xueyinw)
 
+## TODOs
+* Split VulkanShowBase into ShowBase and VulkanContext
+* Camera control
+* Point Light
+
 ## Milestones
 
 ### Milestone 1 (11/21/2016)

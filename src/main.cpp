@@ -3,15 +3,16 @@
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE // opengl's depth range was -1 to 1
+#define GLFW_INCLUDE_VULKAN
 
-#include "renderer/VulkanShowBase.h"
+#include "Showbase.h"
 
 #include <stdexcept>
 #include <iostream>
 
 int main()
 {
-	VulkanShowBase app;
+	ShowBase app;
 
 	try
 	{

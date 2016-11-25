@@ -31,8 +31,8 @@ set(SOURCE_FILES
     "src/renderer/VulkanShowBase.h"
     "src/util.h"
     "src/util.cpp"
-    "src/scene.h"
-    "src/scene.cpp"
+    "src/Showbase.h"
+    "src/Showbase.cpp"
     )
 
 add_executable(${CMAKE_PROJECT_NAME} ${SOURCE_FILES})
