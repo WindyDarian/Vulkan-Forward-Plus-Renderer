@@ -72,7 +72,7 @@ public:
 		swap(first.object, second.object);
 	}
 
-	void operator=(const VDeleter<T>&) = delete;
+	VDeleter<T>& operator=(const VDeleter<T>&) = delete;
 	VDeleter(const VDeleter<T>&) = delete;
 
 private:

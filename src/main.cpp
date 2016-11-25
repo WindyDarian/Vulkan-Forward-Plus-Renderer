@@ -5,24 +5,25 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE // opengl's depth range was -1 to 1
 #define GLFW_INCLUDE_VULKAN
 
-#include "Showbase.h"
+#include "ShowBase.h"
 
 #include <stdexcept>
 #include <iostream>
 
 int main()
 {
-	ShowBase app;
+	auto result = EXIT_SUCCESS;
 
 	try
 	{
+		ShowBase app;
 		app.run();
 	}
 	catch (const std::runtime_error& e)
 	{
 		std::cerr << e.what() << std::endl;
-		return EXIT_FAILURE;
-	}
 
-	return EXIT_SUCCESS;
+		result = EXIT_FAILURE;
+	} 
+	return result;
 }

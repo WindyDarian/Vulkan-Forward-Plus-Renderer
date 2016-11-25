@@ -5,7 +5,7 @@
 
 #include <memory>
 
-class _ShowBase_Impl;
+class _ShowBase_Impl; //pimpl idiom during development stage
 
 class ShowBase
 {

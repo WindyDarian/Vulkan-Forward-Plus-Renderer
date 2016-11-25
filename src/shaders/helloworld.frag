@@ -22,8 +22,8 @@ void main()
 {
     vec4 color_map =  texture(tex_sampler, frag_tex_coord);
     vec3 color = color_map.rgb;
-    out_color = vec4(abs(frag_normal), 1.0);
+    //out_color = vec4(abs(frag_normal), 1.0);
     float lambertian = max(dot(light_direction, frag_normal), 0.0);
     //out_color = texture(tex_sampler, frag_tex_coord) * 0.75 + vec4(frag_color, 1.0) * 0.3;
-    //out_color = vec4(lambertian * color, 1.0);
+    out_color = vec4(lambertian * color, 1.0);
 }

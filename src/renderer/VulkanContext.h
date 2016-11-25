@@ -33,13 +33,14 @@ struct QueueFamilyIndices
 	static QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface);
 };
 
-class VulkanShowBase
+class VulkanContext
 {
 public:
-	VulkanShowBase();
-	void run();
+	VulkanContext(GLFWwindow* window);
 
-	static void onWindowResized(GLFWwindow* window, int width, int height);
+	void resize(int width, int height);
+	void requestDraw();
+	void cleanUp();
 
 	static void DestroyDebugReportCallbackEXT(VkInstance instance
 		, VkDebugReportCallbackEXT callback
@@ -49,6 +50,8 @@ public:
 		, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo
 		, const VkAllocationCallbacks* pAllocator
 		, VkDebugReportCallbackEXT* pCallback);
+
+	
 
 private:
 	GLFWwindow* window;
@@ -107,16 +110,12 @@ private:
 	VDeleter<VkDeviceMemory> vertex_buffer_memory{ graphics_device, vkFreeMemory };
 	VDeleter<VkBuffer> index_buffer{ graphics_device, vkDestroyBuffer };
 	VDeleter<VkDeviceMemory> index_buffer_memory{ graphics_device, vkFreeMemory };
-
-	const int WINDOW_WIDTH = 1920;
-	const int WINDOW_HEIGHT = 1080;
-	const bool WINDOW_RESIZABLE = true;
 	
 	std::vector<util::Vertex> vertices;
 	std::vector<uint32_t> vertex_indices;
 
-	float total_time_past = 0.0f;
-	int total_frames = 0;
+	int window_framebuffer_width;
+	int window_framebuffer_height;
 
 
 #ifdef NDEBUG
@@ -134,9 +133,7 @@ private:
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME
 	};
 
-	void initWindow();
 	void initVulkan();
-	void mainLoop();
 
 	void recreateSwapChain();
 

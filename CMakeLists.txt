@@ -27,12 +27,12 @@ set(SOURCE_FILES
     "src/renderer/vulkan_util.h"
     "src/renderer/vulkan_util.cpp"
     "src/renderer/VDeleter.h"
-    "src/renderer/VulkanShowBase.cpp"
-    "src/renderer/VulkanShowBase.h"
+    "src/renderer/VulkanContext.cpp"
+    "src/renderer/VulkanContext.h"
     "src/util.h"
     "src/util.cpp"
-    "src/Showbase.h"
-    "src/Showbase.cpp"
+    "src/ShowBase.h"
+    "src/ShowBase.cpp"
     )
 
 add_executable(${CMAKE_PROJECT_NAME} ${SOURCE_FILES})
