@@ -164,6 +164,11 @@ void VulkanContext::cleanUp()
 	vkDeviceWaitIdle(graphics_device);
 }
 
+void VulkanContext::setViewMatrix(const glm::mat4 & view)
+{
+	view_matrix = view;
+}
+
 void VulkanContext::initVulkan()
 {
 	createInstance();
@@ -1254,7 +1259,7 @@ void VulkanContext::updateUniformBuffer()
 	UniformBufferObject ubo = {};
 	
 	ubo.model = glm::mat4(1.0f);
-	ubo.view = glm::rotate(glm::mat4(), time * glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::lookAt(glm::vec3(1.5f, 1.5f, 1.5f), glm::vec3(0.0f, 1.5f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	ubo.view = view_matrix;
 	//ubo.model = glm::rotate(glm::mat4(), time * glm::radians(10.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	//ubo.view = glm::lookAt(glm::vec3(1.5f, 1.5f, 1.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	ubo.proj = glm::perspective(glm::radians(45.0f), swap_chain_extent.width / (float)swap_chain_extent.height, 0.5f, 100.0f);

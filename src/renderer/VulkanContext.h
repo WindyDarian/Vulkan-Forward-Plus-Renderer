@@ -42,6 +42,8 @@ public:
 	void requestDraw();
 	void cleanUp();
 
+	void setViewMatrix(const glm::mat4& view);
+
 	static void DestroyDebugReportCallbackEXT(VkInstance instance
 		, VkDebugReportCallbackEXT callback
 		, const VkAllocationCallbacks* pAllocator);
@@ -117,6 +119,7 @@ private:
 	int window_framebuffer_width;
 	int window_framebuffer_height;
 
+	glm::mat4 view_matrix;
 
 #ifdef NDEBUG
 	// if not debugging

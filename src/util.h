@@ -63,6 +63,15 @@ namespace util
 	// returns tuple(vertex vector, index vector)
 	std::tuple<std::vector<Vertex>, std::vector<Vertex::index_t>> loadModel();
 
+	constexpr glm::vec3 vec_up = glm::vec3(0.0f, 1.0f, 0.0f);
+	constexpr glm::vec3 vec_right = glm::vec3(1.0f, 0.0f, 0.0f);
+	constexpr glm::vec3 vec_forward = glm::vec3(0.0f, 0.0f, -1.0f);
+	
+	constexpr float SMALL_NUMBER = 1e-8f;
 
+	inline bool isNearlyEqual(float a, float b, float tolerance = SMALL_NUMBER)
+	{
+		return glm::abs(a - b) <= SMALL_NUMBER;
+	}
 }
 
