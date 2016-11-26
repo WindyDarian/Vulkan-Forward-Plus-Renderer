@@ -190,6 +190,7 @@ private:
 			else if (button == GLFW_MOUSE_BUTTON_RIGHT)
 			{
 				rmb_down = true;
+				glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 			}
 		}
 		else if (action == GLFW_RELEASE)
@@ -201,6 +202,7 @@ private:
 			else if (button == GLFW_MOUSE_BUTTON_RIGHT)
 			{
 				rmb_down = false;
+				glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 			}
 		}
 	}
