@@ -26,7 +26,7 @@ public:
 	glm::vec3 position = { 1.5f, 1.5f, 1.5f };
 	glm::quat rotation = {1.0f, 0.0f, 0.0f, 0.0f};
 	float rotation_speed = glm::pi<float>();
-	float move_speed = 1.f;
+	float move_speed = 10.f;
 
 	//float fov;
 	//glm::vec2 near;
@@ -53,7 +53,7 @@ private:
 	bool lmb_down = false;
 	bool rmb_down = false;
 	glm::vec2 cursor_pos = { 0.0f, 0.0f };
-	glm::vec2 cursor_pos_on_button_down = { 0.0f, 0.0f };
+	glm::vec2 prev_cursor_pos = { 0.0f, 0.0f };
 	glm::vec2 framebuffer_size = { WINDOW_WIDTH, WINDOW_HEIGHT };
 	bool w_down = false;
 	bool s_down = false;
@@ -124,31 +124,29 @@ private:
 				return;
 			}
 
-			auto cursor_delta = (cursor_pos - cursor_pos_on_button_down) / glm::min(framebuffer_size.x, framebuffer_size.y) * 2.0f;
+			auto cursor_delta = (cursor_pos - prev_cursor_pos) / glm::min(framebuffer_size.x, framebuffer_size.y) * 2.0f;
 
 			if (!util::isNearlyEqual(cursor_delta.x, 0))
 			{
-				//camera.rotation = camera.rotation * glm::angleAxis(camera.rotation_speed * cursor_delta.x, util::vec_up);
-				camera.rotation = glm::angleAxis(camera.rotation_speed * cursor_delta.x, util::vec_up) * camera.rotation; // world up
+				camera.rotation = glm::angleAxis(camera.rotation_speed * -cursor_delta.x, util::vec_up) * camera.rotation; // world up
 			}
 
 			if (!util::isNearlyEqual(cursor_delta.y, 0))
 			{
-				//camera.rotation = camera.rotation * glm::angleAxis(camera.rotation_speed * cursor_delta.y, util::vec_right);
-				camera.rotation = camera.rotation * glm::angleAxis(camera.rotation_speed * cursor_delta.y, util::vec_right); // local right
+				camera.rotation = camera.rotation * glm::angleAxis(camera.rotation_speed * -cursor_delta.y, util::vec_right); // local right
 			}
 
-			glfwSetCursorPos(window, cursor_pos_on_button_down.x, cursor_pos_on_button_down.y);
+			prev_cursor_pos = cursor_pos;
 		}
 
 		if (w_down) 
 		{
-			camera.position = camera.position + camera.rotation  * util::vec_forward * camera.move_speed * delta_time;
+			camera.position += camera.rotation  * util::vec_forward * camera.move_speed * delta_time;
 		}
 
 		if (s_down) 
 		{
-			camera.position = camera.position - camera.rotation  * util::vec_forward * camera.move_speed * delta_time;
+			camera.position -= camera.rotation  * util::vec_forward * camera.move_speed * delta_time;
 		}
 	}
 
@@ -162,7 +160,7 @@ private:
 		while (!glfwWindowShouldClose(window))
 		{
 			current = std::chrono::high_resolution_clock::now();
-			delta_time = std::chrono::duration_cast<std::chrono::milliseconds>(current - previous).count() / 1000.0f;
+			delta_time = std::chrono::duration<float>(current - previous).count();
 
 			glfwPollEvents();
 
@@ -178,7 +176,7 @@ private:
 
 		}
 		auto end_time = std::chrono::high_resolution_clock::now();
-		total_time_past = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() / 1000.0f;
+		total_time_past = std::chrono::duration<float>(end_time - start_time).count();
 		if (total_time_past > 0)
 		{
 			std::cout << "FPS: " << total_frames / total_time_past << std::endl;
@@ -200,7 +198,7 @@ private:
 			double x, y;
 			glfwGetCursorPos(window, &x, &y);
 			cursor_pos = {x, y};
-			cursor_pos_on_button_down = {x, y};
+			prev_cursor_pos = {x, y};
 
 			if (button == GLFW_MOUSE_BUTTON_LEFT)
 			{
