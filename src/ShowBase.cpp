@@ -26,6 +26,7 @@ public:
 	glm::vec3 position = { 1.5f, 1.5f, 1.5f };
 	glm::quat rotation = {1.0f, 0.0f, 0.0f, 0.0f};
 	float rotation_speed = glm::pi<float>();
+	float move_speed = 1.f;
 
 	//float fov;
 	//glm::vec2 near;
@@ -54,7 +55,9 @@ private:
 	glm::vec2 cursor_pos = { 0.0f, 0.0f };
 	glm::vec2 cursor_pos_on_button_down = { 0.0f, 0.0f };
 	glm::vec2 framebuffer_size = { WINDOW_WIDTH, WINDOW_HEIGHT };
-	
+	bool w_down = false;
+	bool s_down = false;
+
 	GLFWwindow* createWindow()
 	{
 		glfwInit();
@@ -92,6 +95,12 @@ private:
 			app->onMouseButton(button, action, mods);
 		};
 
+		auto key_callback = [](GLFWwindow* window, int key, int scancode, int action, int mods)
+		{
+			auto app = reinterpret_cast<_ShowBase_Impl*>(glfwGetWindowUserPointer(window));
+			app->onKeyPress(key, scancode, action, mods);
+		};
+
 		glfwSetFramebufferSizeCallback(window, buffersize_callback);
 		glfwSetCursorPosCallback(window, cursorpos_callback);
 		glfwSetMouseButtonCallback(window, mousebutton_callback);
@@ -100,7 +109,7 @@ private:
 		glfwGetFramebufferSize(window, &w, &h);
 		framebuffer_size = { w, h };
 
-		//glfwSetKeyCallback(window, keyCallback);
+		glfwSetKeyCallback(window, key_callback);
 		//glfwSetScrollCallback(window, scrollCallback);
 
 		return window;
@@ -130,6 +139,16 @@ private:
 			}
 
 			glfwSetCursorPos(window, cursor_pos_on_button_down.x, cursor_pos_on_button_down.y);
+		}
+
+		if (w_down) 
+		{
+			camera.position = camera.position + camera.rotation  * util::vec_forward * camera.move_speed * delta_time;
+		}
+
+		if (s_down) 
+		{
+			camera.position = camera.position - camera.rotation  * util::vec_forward * camera.move_speed * delta_time;
 		}
 	}
 
@@ -203,6 +222,30 @@ private:
 			{
 				rmb_down = false;
 				glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+			}
+		}
+	}
+
+	void onKeyPress(int key, int scancode, int action, int mods)
+	{
+		if (action == GLFW_PRESS) {
+			switch (key) {
+			    case GLFW_KEY_W:
+				    w_down = true;
+					break;
+			    case GLFW_KEY_S:
+				    s_down = true;
+					break;
+			}
+		}
+		else if (action == GLFW_RELEASE) {
+			switch (key) {
+			    case GLFW_KEY_W:
+				    w_down = false;
+					break;
+			    case GLFW_KEY_S:
+				    s_down = false;
+					break;
 			}
 		}
 	}
