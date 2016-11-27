@@ -6,6 +6,9 @@
 #include "VDeleter.h"
 #include "../util.h"
 
+// TODO: DELETE ME
+#include "../Scene.h"
+
 #include <vulkan/vulkan.h>
 
 #include <GLFW/glfw3.h>
@@ -113,8 +116,14 @@ private:
 	VDeleter<VkBuffer> index_buffer{ graphics_device, vkDestroyBuffer };
 	VDeleter<VkDeviceMemory> index_buffer_memory{ graphics_device, vkFreeMemory };
 	
+	VDeleter<VkBuffer> pointlight_buffer{ this->graphics_device, vkDestroyBuffer };
+	VDeleter<VkDeviceMemory> pointlight_buffer_memory{ graphics_device, vkFreeMemory };
+
 	std::vector<util::Vertex> vertices;
 	std::vector<uint32_t> vertex_indices;
+
+	std::vector<PointLight> pointlights;
+	const int MAX_POINT_LIGHT_COUNT = 1000;
 
 	int window_framebuffer_width;
 	int window_framebuffer_height;
@@ -159,6 +168,7 @@ private:
 	void createVertexBuffer();
 	void createIndexBuffer();
 	void createUniformBuffer();
+	void createLights();
 	void createDescriptorPool();
 	void createDescriptorSet();
 	void createCommandBuffers();

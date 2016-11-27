@@ -8,18 +8,18 @@
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-// TODO:
-// class Scene
-// {
-//  
-// };
+#include <vector>
+
+// TODO: now the scene is just a low level struct... once renderer is basically finished 
+//       and we start working on scene management there should be a higher level scene class
+//      (and there should be some change in dependency relationship.... or just leave this Scene stuct as some RenderableScene)
 
 struct PointLight
 {
 public:
 	glm::vec3 pos = { 0.0f, 1.0f, 0.0f };
 	float radius = { 5.0f };
-	glm::vec3 color = { 1.0f, 1.0f, 1.0f };
+	glm::vec3 intensity = { 1.0f, 1.0f, 1.0f };
 };
 
 struct Camera
@@ -39,4 +39,10 @@ public:
 		// return glm::inverse(glm::translate(glm::toMat4(rotation), position));
 		return glm::transpose(glm::toMat4(rotation)) * glm::translate(glm::mat4(1.0f), -position); // equal to inv(TR) 
 	}
+};
+
+struct Scene
+{
+	std::vector<PointLight> point_lights{ PointLight() }; // just one light for test
+	Camera camera;
 };

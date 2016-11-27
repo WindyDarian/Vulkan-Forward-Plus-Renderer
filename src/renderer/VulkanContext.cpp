@@ -192,6 +192,7 @@ void VulkanContext::initVulkan()
 	createVertexBuffer();
 	createIndexBuffer();
 	createUniformBuffer();
+	createLights();
 	createDescriptorPool();
 	createDescriptorSet();
 	createCommandBuffers();
@@ -1088,6 +1089,28 @@ void VulkanContext::createUniformBuffer()
 		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 		, &uniform_buffer
 		, &uniform_buffer_memory);
+}
+
+void VulkanContext::createLights()
+{
+	pointlights.emplace_back();  // TODO: test only
+
+	// TODO: choose between memory mapping and staging buffer
+	//  (given that the lights are moving)
+	VkDeviceSize bufferSize = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT;
+
+	//createBuffer(bufferSize
+	//	, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+	//	, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+	//	, &pointlight_buffer
+	//	, &pointlight_buffer_memory);
+
+	createBuffer(bufferSize
+		, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT   // TODO: uniform or storage?
+		, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+		, &pointlight_buffer
+		, &pointlight_buffer_memory);
+
 }
 
 void VulkanContext::createDescriptorPool()
