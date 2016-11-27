@@ -55,8 +55,12 @@ private:
 	glm::vec2 cursor_pos = { 0.0f, 0.0f };
 	glm::vec2 prev_cursor_pos = { 0.0f, 0.0f };
 	glm::vec2 framebuffer_size = { WINDOW_WIDTH, WINDOW_HEIGHT };
-	bool w_down = false;
+	bool w_down = false; // todo use a hash map or something
 	bool s_down = false;
+	bool a_down = false;
+	bool d_down = false;
+	bool q_down = false;
+	bool e_down = false;
 
 	GLFWwindow* createWindow()
 	{
@@ -136,17 +140,45 @@ private:
 				camera.rotation = camera.rotation * glm::angleAxis(camera.rotation_speed * -cursor_delta.y, util::vec_right); // local right
 			}
 
+			camera.rotation = glm::normalize(camera.rotation);
+
 			prev_cursor_pos = cursor_pos;
 		}
 
 		if (w_down) 
 		{
+			// forward
 			camera.position += camera.rotation  * util::vec_forward * camera.move_speed * delta_time;
 		}
 
 		if (s_down) 
 		{
+			// back
 			camera.position -= camera.rotation  * util::vec_forward * camera.move_speed * delta_time;
+		}
+
+		if (a_down)
+		{
+			// left
+			camera.position -= camera.rotation  * util::vec_right * camera.move_speed * delta_time;
+		}
+
+		if (d_down)
+		{
+			// right
+			camera.position += camera.rotation  * util::vec_right * camera.move_speed * delta_time;
+		}
+
+		if (q_down)
+		{
+			// up
+			camera.position += camera.rotation  * util::vec_up * camera.move_speed * delta_time;
+		}
+
+		if (e_down)
+		{
+			// down
+			camera.position -= camera.rotation  * util::vec_up * camera.move_speed * delta_time;
 		}
 	}
 
@@ -226,23 +258,52 @@ private:
 
 	void onKeyPress(int key, int scancode, int action, int mods)
 	{
-		if (action == GLFW_PRESS) {
-			switch (key) {
+		if (action == GLFW_PRESS) 
+		{
+			switch (key) 
+			{
+				// todo use a hash map or something
 			    case GLFW_KEY_W:
 				    w_down = true;
 					break;
 			    case GLFW_KEY_S:
 				    s_down = true;
 					break;
+				case GLFW_KEY_A:
+					a_down = true;
+					break;
+				case GLFW_KEY_D:
+					d_down = true;
+					break;
+				case GLFW_KEY_Q:
+					q_down = true;
+					break;
+				case GLFW_KEY_E:
+					e_down = true;
+					break;
 			}
 		}
-		else if (action == GLFW_RELEASE) {
-			switch (key) {
+		else if (action == GLFW_RELEASE) 
+		{
+			switch (key) 
+			{
 			    case GLFW_KEY_W:
 				    w_down = false;
 					break;
 			    case GLFW_KEY_S:
 				    s_down = false;
+					break;
+				case GLFW_KEY_A:
+					a_down = false;
+					break;
+				case GLFW_KEY_D:
+					d_down = false;
+					break;
+				case GLFW_KEY_Q:
+					q_down = false;
+					break;
+				case GLFW_KEY_E:
+					e_down = false;
 					break;
 			}
 		}
