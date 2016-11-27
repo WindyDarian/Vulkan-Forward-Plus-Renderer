@@ -4,6 +4,7 @@
 #include "ShowBase.h"
 
 #include "renderer/VulkanContext.h"
+#include "Scene.h"
 #include "util.h"
 
 #include <GLFW/glfw3.h>
@@ -13,31 +14,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 
 constexpr int WINDOW_WIDTH = 1920;
 constexpr int WINDOW_HEIGHT = 1080;
 constexpr bool WINDOW_RESIZABLE = true;
 constexpr float MIN_DELTA_TIME = 1.0f / 60.0f;
-
-struct Camera
-{
-public:
-	glm::vec3 position = { 1.5f, 1.5f, 1.5f };
-	glm::quat rotation = {1.0f, 0.0f, 0.0f, 0.0f};
-	float rotation_speed = glm::pi<float>();
-	float move_speed = 10.f;
-
-	//float fov;
-	//glm::vec2 near;
-	//glm::vec2 far;
-
-	glm::mat4 getViewMatrix() const
-	{
-		// return glm::inverse(glm::translate(glm::toMat4(rotation), position));
-		return glm::transpose(glm::toMat4(rotation)) * glm::translate(glm::mat4(1.0f), -position); // equal to inv(TR) 
-	}
-};
 
 class _ShowBase_Impl
 {

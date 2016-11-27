@@ -33,6 +33,8 @@ set(SOURCE_FILES
     "src/util.cpp"
     "src/ShowBase.h"
     "src/ShowBase.cpp"
+    "src/Scene.h"
+    "src/Scene.cpp"
     )
 
 add_executable(${CMAKE_PROJECT_NAME} ${SOURCE_FILES})
