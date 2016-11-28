@@ -184,7 +184,7 @@ private:
 			}
 
 			context.setCamera(camera.getViewMatrix(), camera.position);
-			context.requestDraw();
+			context.requestDraw(delta_time);
 			total_frames++;
 
 		}

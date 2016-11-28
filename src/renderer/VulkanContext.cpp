@@ -154,9 +154,9 @@ void VulkanContext::resize(int width, int height)
 	recreateSwapChain();
 }
 
-void VulkanContext::requestDraw()
+void VulkanContext::requestDraw(float deltatime)
 {
-	updateUniformBuffer(); // TODO: there is graphics queue waiting in copyBuffer() called by this so I don't need to sync CPU and GPU elsewhere... but someday I will make the copy command able to use multiple times and I need to sync on writing the staging buffer
+	updateUniformBuffer(deltatime); // TODO: there is graphics queue waiting in copyBuffer() called by this so I don't need to sync CPU and GPU elsewhere... but someday I will make the copy command able to use multiple times and I need to sync on writing the staging buffer
 	drawFrame();
 }
 
@@ -1058,7 +1058,7 @@ void VulkanContext::createLights()
 {
 	//glm::linearRand(glm::vec3(10, 10, 10), glm::vec3(-10, -10, -10));
 	for (int i = 0; i < 200; i++) {
-		pointlights.emplace_back(glm::linearRand(glm::vec3(-10, -10, -10), glm::vec3(10, 10, 10)), 5, glm::linearRand(glm::vec3(0, 0, 0), glm::vec3(1, 1, 1)));
+		pointlights.emplace_back(glm::linearRand(LIGHTPOS_MIN, LIGHTPOS_MAX), 5, glm::linearRand(glm::vec3(0, 0, 0), glm::vec3(1, 1, 1)));
 	}
 	// TODO: choose between memory mapping and staging buffer
 	//  (given that the lights are moving)
@@ -1302,7 +1302,7 @@ void VulkanContext::createSemaphores()
 	}
 }
 
-void VulkanContext::updateUniformBuffer()
+void VulkanContext::updateUniformBuffer(float deltatime)
 {
 	static auto start_time = std::chrono::high_resolution_clock::now();
 
@@ -1331,9 +1331,9 @@ void VulkanContext::updateUniformBuffer()
 	VkDeviceSize bufferSize = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(int);
 
 	for (int i = 0; i < light_num; i++) {
-		pointlights[i].pos += glm::vec3(0, 0.2, 0);
-		if (pointlights[i].pos.y > 18) {
-			pointlights[i].pos.y = -10;
+		pointlights[i].pos += glm::vec3(0, 3.0f, 0) * deltatime;
+		if (pointlights[i].pos.y > LIGHTPOS_MAX.y) {
+			pointlights[i].pos.y -= (LIGHTPOS_MAX.y - LIGHTPOS_MIN.y);
 		}
 	}
 	
@@ -1345,6 +1345,7 @@ void VulkanContext::updateUniformBuffer()
 }
 
 const uint64_t ACQUIRE_NEXT_IMAGE_TIMEOUT{ std::numeric_limits<uint64_t>::max() };
+
 void VulkanContext::drawFrame()
 {
 	// 1. Acquiring an image from the swap chain

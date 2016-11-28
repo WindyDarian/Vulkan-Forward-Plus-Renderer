@@ -44,7 +44,7 @@ public:
 	VulkanContext(GLFWwindow* window);
 
 	void resize(int width, int height);
-	void requestDraw();
+	void requestDraw(float deltatime);
 	void cleanUp();
 
 	void setCamera(const glm::mat4 & view, const glm::vec3 campos);
@@ -129,6 +129,8 @@ private:
 
 	std::vector<PointLight> pointlights;
 	const int MAX_POINT_LIGHT_COUNT = 1000;
+	const glm::vec3 LIGHTPOS_MIN = { -15, -10, -20 };
+	const glm::vec3 LIGHTPOS_MAX = { 15, 20, 20 };
 
 	int window_framebuffer_width;
 	int window_framebuffer_height;
@@ -179,7 +181,7 @@ private:
 	void createCommandBuffers();
 	void createSemaphores();
 
-	void updateUniformBuffer();
+	void updateUniformBuffer(float deltatime);
 	void drawFrame();
 
 	void createShaderModule(const std::vector<char>& code, VkShaderModule* p_shader_module);
