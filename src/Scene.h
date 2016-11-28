@@ -20,6 +20,11 @@ public:
 	glm::vec3 pos = { 0.0f, 1.0f, 0.0f };
 	float radius = { 5.0f };
 	glm::vec3 intensity = { 1.0f, 1.0f, 1.0f };
+
+	PointLight() {}
+	PointLight(glm::vec3 pos, float radius, glm::vec3 intensity)
+		: pos(pos), radius(radius), intensity(intensity)
+	{};
 };
 
 struct Camera

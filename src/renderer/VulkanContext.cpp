@@ -1102,11 +1102,17 @@ void VulkanContext::createUniformBuffer()
 
 void VulkanContext::createLights()
 {
-	pointlights.emplace_back();  // TODO: test only
+	pointlights.emplace_back(glm::vec3(0.f, 1.f, 0.f), 10, glm::vec3(1.0f, 0.0f, 0.0f));  // TODO: test only
+	pointlights.emplace_back(glm::vec3(2.f, 1.f, 1.f), 10, glm::vec3(1.0f, 1.0f, 0.0f));
+	pointlights.emplace_back(glm::vec3(0.f, 1.f, 0.f), 10, glm::vec3(1.0f, 0.0f, 1.0f));
 
 	// TODO: choose between memory mapping and staging buffer
 	//  (given that the lights are moving)
-	VkDeviceSize bufferSize = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT;
+
+
+	auto size = sizeof(PointLight) * pointlights.size();
+
+	VkDeviceSize bufferSize = size;
 
 	//createBuffer(bufferSize
 	//	, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
@@ -1121,9 +1127,8 @@ void VulkanContext::createLights()
 		, &pointlight_buffer_memory);
 
 	void* data;
-	auto size = sizeof(PointLight) * pointlights.size();
 
-	vkMapMemory(graphics_device, pointlight_buffer_memory, 0, size, 0, &data);
+	vkMapMemory(graphics_device, pointlight_buffer_memory, 0, bufferSize, 0, &data);
 	memcpy(data, pointlights.data(), size);
 	vkUnmapMemory(graphics_device, pointlight_buffer_memory);
 

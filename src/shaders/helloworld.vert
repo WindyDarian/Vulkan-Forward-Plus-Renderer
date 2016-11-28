@@ -16,6 +16,7 @@ layout(location = 3) in vec3 in_normal;
 layout(location = 0) out vec3 frag_color;
 layout(location = 1) out vec2 frag_tex_coord;
 layout(location = 2) out vec3 frag_normal;
+layout(location = 3) out vec3 frag_pos_world;
 
 out gl_PerVertex
 {
@@ -33,4 +34,5 @@ void main()
     frag_color = in_color;
     frag_tex_coord = in_tex_coord;
     frag_normal = normalize((invtransmodel * vec4(in_normal, 0.0)).xyz);
+    frag_pos_world = in_position;
 }
