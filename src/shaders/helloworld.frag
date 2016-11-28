@@ -15,9 +15,10 @@ struct PointLight {
 };
 
 layout(set = 0, binding = 1) uniform sampler2D tex_sampler;
-layout(std430, set = 0, binding = 2) readonly buffer PointLights 
+layout(set = 0, binding = 2) uniform PointLights // readonly buffer PointLights
 {
-	PointLight pointlights[2];
+	int light_num;
+	PointLight pointlights[1000];
 };
 
 layout(location = 0) in vec3 frag_color;
@@ -41,7 +42,7 @@ void main()
     // float att = clamp(1.0 - light_distance * light_distance / (pointlights[0].radius * pointlights[0].radius), 0.0, 1.0);
     // illuminance += pointlights[0].intensity * att * lambertian;
 
-    for (int i = 0; i < pointlights.length(); i++)
+    for (int i = 0; i < light_num; i++)
 	{
         PointLight light = pointlights[i];
 		vec3 light_dir = normalize(light.pos - frag_pos_world);

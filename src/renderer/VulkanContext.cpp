@@ -660,7 +660,7 @@ void VulkanContext::createDescriptorSetLayout()
 
 	VkDescriptorSetLayoutBinding lights_layout_binding = {};
 	lights_layout_binding.binding = 2;
-	lights_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	lights_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	lights_layout_binding.descriptorCount = 1;
 	lights_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT; // only referencing from vertex shader
 																// VK_SHADER_STAGE_ALL_GRAPHICS
@@ -1109,10 +1109,9 @@ void VulkanContext::createLights()
 	// TODO: choose between memory mapping and staging buffer
 	//  (given that the lights are moving)
 
+	int light_num = pointlights.size();
 
-	auto size = sizeof(PointLight) * pointlights.size();
-
-	VkDeviceSize bufferSize = size;
+	VkDeviceSize bufferSize = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(int);
 
 	//createBuffer(bufferSize
 	//	, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
@@ -1121,15 +1120,17 @@ void VulkanContext::createLights()
 	//	, &pointlight_buffer_memory);
 
 	createBuffer(bufferSize
-		, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT   // TODO: uniform or storage?
+		, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT   // TODO: uniform or storage?
 		, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
 		, &pointlight_buffer
 		, &pointlight_buffer_memory);
 
+	auto size = sizeof(PointLight) * pointlights.size();
 	void* data;
 
 	vkMapMemory(graphics_device, pointlight_buffer_memory, 0, bufferSize, 0, &data);
-	memcpy(data, pointlights.data(), size);
+	memcpy(data, &light_num, sizeof(int));
+	memcpy((char*)data + sizeof(glm::vec4), pointlights.data(), size);
 	vkUnmapMemory(graphics_device, pointlight_buffer_memory);
 
 }
@@ -1143,7 +1144,7 @@ void VulkanContext::createDescriptorPool()
 	pool_sizes[0].descriptorCount = 1;
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	pool_sizes[1].descriptorCount = 1;
-	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	pool_sizes[2].descriptorCount = 1;
 
 	VkDescriptorPoolCreateInfo pool_info = {};
@@ -1188,7 +1189,7 @@ void VulkanContext::createDescriptorSet()
 	VkDescriptorBufferInfo lights_buffer_info = {};
 	lights_buffer_info.buffer = pointlight_buffer;
 	lights_buffer_info.offset = 0;
-	lights_buffer_info.range = sizeof(PointLight) * pointlights.size();
+	lights_buffer_info.range = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(int);
 
 	std::array<VkWriteDescriptorSet, 3> descriptor_writes = {};
 	//std::array<VkWriteDescriptorSet, 2> descriptor_writes = {};
@@ -1218,7 +1219,7 @@ void VulkanContext::createDescriptorSet()
 	descriptor_writes[2].dstSet = descriptor_set;
 	descriptor_writes[2].dstBinding = 2;
 	descriptor_writes[2].dstArrayElement = 0;
-	descriptor_writes[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	descriptor_writes[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	descriptor_writes[2].descriptorCount = 1;
 	descriptor_writes[2].pBufferInfo = &lights_buffer_info;
 	descriptor_writes[2].pImageInfo = nullptr; // Optional
