@@ -658,7 +658,16 @@ void VulkanContext::createDescriptorSetLayout()
 	sampler_layout_binding.pImmutableSamplers = nullptr;
 	sampler_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-	std::array<VkDescriptorSetLayoutBinding, 2> bindings = { ubo_layout_binding, sampler_layout_binding };
+	VkDescriptorSetLayoutBinding lights_layout_binding = {};
+	lights_layout_binding.binding = 2;
+	lights_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	lights_layout_binding.descriptorCount = 1;
+	lights_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT; // only referencing from vertex shader
+																// VK_SHADER_STAGE_ALL_GRAPHICS
+	lights_layout_binding.pImmutableSamplers = nullptr; // Optional
+
+	std::array<VkDescriptorSetLayoutBinding, 3> bindings = { ubo_layout_binding, sampler_layout_binding, lights_layout_binding };
+	// std::array<VkDescriptorSetLayoutBinding, 2> bindings = { ubo_layout_binding, sampler_layout_binding};
 	VkDescriptorSetLayoutCreateInfo layout_info = {};
 	layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	layout_info.bindingCount = (uint32_t)bindings.size();
@@ -1111,16 +1120,26 @@ void VulkanContext::createLights()
 		, &pointlight_buffer
 		, &pointlight_buffer_memory);
 
+	void* data;
+	auto size = sizeof(PointLight) * pointlights.size();
+
+	vkMapMemory(graphics_device, pointlight_buffer_memory, 0, size, 0, &data);
+	memcpy(data, pointlights.data(), size);
+	vkUnmapMemory(graphics_device, pointlight_buffer_memory);
+
 }
 
 void VulkanContext::createDescriptorPool()
 {
 	// Create descriptor pool for uniform buffer
-	std::array<VkDescriptorPoolSize, 2> pool_sizes = {};
+	std::array<VkDescriptorPoolSize, 3> pool_sizes = {};
+	//std::array<VkDescriptorPoolSize, 2> pool_sizes = {};
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	pool_sizes[0].descriptorCount = 1;
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	pool_sizes[1].descriptorCount = 1;
+	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	pool_sizes[2].descriptorCount = 1;
 
 	VkDescriptorPoolCreateInfo pool_info = {};
 	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1161,7 +1180,15 @@ void VulkanContext::createDescriptorSet()
 	image_info.imageView = texture_image_view;
 	image_info.sampler = texture_sampler;
 
-	std::array<VkWriteDescriptorSet, 2> descriptor_writes = {};
+	VkDescriptorBufferInfo lights_buffer_info = {};
+	lights_buffer_info.buffer = pointlight_buffer;
+	lights_buffer_info.offset = 0;
+	lights_buffer_info.range = sizeof(PointLight) * pointlights.size();
+
+	std::array<VkWriteDescriptorSet, 3> descriptor_writes = {};
+	//std::array<VkWriteDescriptorSet, 2> descriptor_writes = {};
+
+	// ubo
 	descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	descriptor_writes[0].dstSet = descriptor_set;
 	descriptor_writes[0].dstBinding = 0;
@@ -1172,6 +1199,7 @@ void VulkanContext::createDescriptorSet()
 	descriptor_writes[0].pImageInfo = nullptr; // Optional
 	descriptor_writes[0].pTexelBufferView = nullptr; // Optional
 
+	// texture
 	descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	descriptor_writes[1].dstSet = descriptor_set;
 	descriptor_writes[1].dstBinding = 1;
@@ -1179,6 +1207,17 @@ void VulkanContext::createDescriptorSet()
 	descriptor_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	descriptor_writes[1].descriptorCount = 1;
 	descriptor_writes[1].pImageInfo = &image_info;
+
+	// lights
+	descriptor_writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptor_writes[2].dstSet = descriptor_set;
+	descriptor_writes[2].dstBinding = 2;
+	descriptor_writes[2].dstArrayElement = 0;
+	descriptor_writes[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	descriptor_writes[2].descriptorCount = 1;
+	descriptor_writes[2].pBufferInfo = &lights_buffer_info;
+	descriptor_writes[2].pImageInfo = nullptr; // Optional
+	descriptor_writes[2].pTexelBufferView = nullptr; // Optional
 
 
 	vkUpdateDescriptorSets(graphics_device, (uint32_t)descriptor_writes.size()
