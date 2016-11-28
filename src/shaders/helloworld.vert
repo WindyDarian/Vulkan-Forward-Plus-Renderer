@@ -3,9 +3,11 @@
 
 layout(set = 0, binding = 0) uniform UniformBufferObject
 {
+    // todo merge some of the matrics and do screen space lighting
     mat4 model;
     mat4 view;
     mat4 proj;
+    vec3 cam_pos;
 } transform;
 
 layout(location = 0) in vec3 in_position;

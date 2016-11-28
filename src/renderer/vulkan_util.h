@@ -5,10 +5,13 @@
 #include <vulkan/vulkan.h>
 #include <array>
 
+#include <string>
+
 namespace vulkan_util
 {
 	VkVertexInputBindingDescription getVertexBindingDesciption();
 
 	std::array<VkVertexInputAttributeDescription, 4> getVertexAttributeDescriptions();
+
 }
 

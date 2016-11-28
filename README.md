@@ -17,6 +17,10 @@ Members:
 
 ## Milestones
 
+### Camera control, point lights, normal mapping and Blinn-Phong shading  (11/28/2016)
+
+![](/screenshots/blinn-phong_and_normal_mapping.jpg)
+
 ### Milestone 1 (11/21/2016)
 * Basic Vulkan framework including:
   * basic forward rendering pipeline (adaptd from [Vulkan Tutorial by Alexander Overvoorde](https://vulkan-tutorial.com))

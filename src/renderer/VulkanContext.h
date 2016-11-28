@@ -18,9 +18,11 @@
 
 struct UniformBufferObject
 {
+	// todo merge these 3
 	glm::mat4 model;
 	glm::mat4 view;
 	glm::mat4 proj;
+	glm::vec3 cam_pos;
 };
 
 struct QueueFamilyIndices
@@ -45,7 +47,7 @@ public:
 	void requestDraw();
 	void cleanUp();
 
-	void setViewMatrix(const glm::mat4& view);
+	void setCamera(const glm::mat4 & view, const glm::vec3 campos);
 
 	static void DestroyDebugReportCallbackEXT(VkInstance instance
 		, VkDebugReportCallbackEXT callback
@@ -99,6 +101,9 @@ private:
 	VDeleter<VkImage> texture_image{ graphics_device, vkDestroyImage };
 	VDeleter<VkDeviceMemory> texture_image_memory{ graphics_device, vkFreeMemory };
 	VDeleter<VkImageView> texture_image_view{ graphics_device, vkDestroyImageView };
+	VDeleter<VkImage> normalmap_image{ graphics_device, vkDestroyImage };
+	VDeleter<VkDeviceMemory> normalmap_image_memory{ graphics_device, vkFreeMemory };
+	VDeleter<VkImageView> normalmap_image_view{ graphics_device, vkDestroyImageView };
 	VDeleter<VkSampler> texture_sampler{ graphics_device, vkDestroySampler };
 
 	// uniform buffer and descriptor
@@ -129,6 +134,7 @@ private:
 	int window_framebuffer_height;
 
 	glm::mat4 view_matrix;
+	glm::vec3 cam_pos;
 
 #ifdef NDEBUG
 	// if not debugging
@@ -162,8 +168,7 @@ private:
 	void createCommandPool();
 	void createDepthResources();
 	void createFrameBuffers();
-	void createTextureImage();
-	void createTextureImageView();
+	void createTextureAndNormal();
 	void createTextureSampler();
 	void createVertexBuffer();
 	void createIndexBuffer();
@@ -209,6 +214,8 @@ private:
 	void transitImageLayout(VkImage image, VkImageLayout old_layout, VkImageLayout new_layout);
 
 	void createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspect_mask, VkImageView * p_image_view);
+
+	void loadImageFromFile(std::string path, VkImage* p_vkimage, VkDeviceMemory* p_image_memory, VkImageView * p_image_view);
 
 	VkCommandBuffer beginSingleTimeCommands();
 	void endSingleTimeCommands(VkCommandBuffer commandBuffer);

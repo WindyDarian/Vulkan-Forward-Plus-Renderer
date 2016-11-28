@@ -183,7 +183,7 @@ private:
 				previous = current;
 			}
 
-			context.setViewMatrix(camera.getViewMatrix());
+			context.setCamera(camera.getViewMatrix(), camera.position);
 			context.requestDraw();
 			total_frames++;
 
