@@ -1,7 +1,7 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-layout(set = 0, binding = 0) uniform UniformBufferObject
+layout(std140, set = 0, binding = 0) uniform UniformBufferObject
 {
     // todo merge some of the matrics and do screen space lighting
     mat4 model;

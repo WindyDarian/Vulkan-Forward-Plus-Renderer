@@ -9,7 +9,6 @@
 #include <glm/gtc/random.hpp>
 #include <stb_image.h>
 
-
 #include <functional>
 #include <vector>
 #include <unordered_set>
@@ -22,7 +21,6 @@
 #include <iostream>
 
 using util::Vertex;
-
 
 struct SwapChainSupportDetails
 {
@@ -694,6 +692,7 @@ void VulkanContext::createGraphicsPipeline()
 {
 	auto vert_shader_code = util::readFile(util::getContentPath("helloworld_vert.spv"));
 	auto frag_shader_code = util::readFile(util::getContentPath("helloworld_frag.spv"));
+	// auto light_culling_comp_shader_code = util::readFile(util::getContentPath("light_culling.comp.spv"));
 
 	VDeleter<VkShaderModule> vert_shader_module{ graphics_device, vkDestroyShaderModule };
 	VDeleter<VkShaderModule> frag_shader_module{ graphics_device, vkDestroyShaderModule };

@@ -5,9 +5,10 @@ struct PointLight {
 	vec3 pos;
 	float radius;
 	vec3 intensity;
+    float padding;
 };
 
-layout(set = 0, binding = 0) uniform UniformBufferObject
+layout(std140, set = 0, binding = 0) uniform UniformBufferObject
 {
     mat4 model;
     mat4 view;
@@ -17,7 +18,7 @@ layout(set = 0, binding = 0) uniform UniformBufferObject
 
 layout(set = 0, binding = 1) uniform sampler2D tex_sampler;
 layout(set = 0, binding = 2) uniform sampler2D normal_sampler;
-layout(set = 0, binding = 3) uniform PointLights // readonly buffer PointLights
+layout(std140, set = 0, binding = 3) uniform PointLights // readonly buffer PointLights
 {
 	int light_num;
 	PointLight pointlights[1000];
@@ -67,7 +68,7 @@ void main()
             vec3 halfDir = normalize(light_dir + viewDir);
             float specAngle = max(dot(halfDir, normal), 0.0);
             float specular = pow(specAngle, 32.0); // TODO?: spec color & power in g-buffer?
-        
+
             float att = clamp(1.0 - light_distance * light_distance / (light.radius * light.radius), 0.0, 1.0);
             illuminance += light.intensity * att * (lambertian * diffuse + specular);
         }
