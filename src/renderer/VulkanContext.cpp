@@ -1327,7 +1327,21 @@ void VulkanContext::updateUniformBuffer()
 	// TODO: maybe I shouldn't use single time buffer
 
 	//TODO: use push constants
+	int light_num = pointlights.size();
+	VkDeviceSize bufferSize = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(int);
 
+	for (int i = 0; i < light_num; i++) {
+		pointlights[i].pos += glm::vec3(0, 0.2, 0);
+		if (pointlights[i].pos.y > 18) {
+			pointlights[i].pos.y = -10;
+		}
+	}
+	
+	auto size = sizeof(PointLight) * pointlights.size();
+	vkMapMemory(graphics_device, pointlight_buffer_memory, 0, bufferSize, 0, &data);
+	memcpy(data, &light_num, sizeof(int));
+	memcpy((char*)data + sizeof(glm::vec4), pointlights.data(), size);
+	vkUnmapMemory(graphics_device, pointlight_buffer_memory);
 }
 
 const uint64_t ACQUIRE_NEXT_IMAGE_TIMEOUT{ std::numeric_limits<uint64_t>::max() };
