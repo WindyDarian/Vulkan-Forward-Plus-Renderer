@@ -16,8 +16,12 @@ Members:
 * Point Light
 
 ## Milestones
-
-### Camera control, point lights, normal mapping and Blinn-Phong shading  (11/28/2016)
+### Milestone 2 (11/28/2016)
+* Basic Vulkan framework including:
+  * Camera control
+  * Point lights
+  * Normal mapping
+  * Blinn-Phong Shading
 
 ![](/screenshots/blinn-phong_and_normal_mapping.jpg)
 
