@@ -6,8 +6,9 @@
 #include "vulkan_util.h"
 
 #include <glm/gtc/matrix_transform.hpp>
-
+#include <glm/gtc/random.hpp>
 #include <stb_image.h>
+
 
 #include <functional>
 #include <vector>
@@ -1120,7 +1121,7 @@ void VulkanContext::createLights()
 	//	, &pointlight_buffer_memory);
 
 	createBuffer(bufferSize
-		, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT   // TODO: uniform or storage?
+		, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT   // TODO: uniform or storage? <- We still want to use storage buffer
 		, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
 		, &pointlight_buffer
 		, &pointlight_buffer_memory);
