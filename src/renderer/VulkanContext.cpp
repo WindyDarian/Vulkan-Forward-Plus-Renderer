@@ -1103,13 +1103,12 @@ void VulkanContext::createUniformBuffer()
 
 void VulkanContext::createLights()
 {
-	pointlights.emplace_back(glm::vec3(0.f, 1.f, 0.f), 10, glm::vec3(1.0f, 0.0f, 0.0f));  // TODO: test only
-	pointlights.emplace_back(glm::vec3(2.f, 1.f, 1.f), 10, glm::vec3(1.0f, 1.0f, 0.0f));
-	pointlights.emplace_back(glm::vec3(0.f, 1.f, 0.f), 10, glm::vec3(1.0f, 0.0f, 1.0f));
-
+	//glm::linearRand(glm::vec3(10, 10, 10), glm::vec3(-10, -10, -10));
+	for (int i = 0; i < 200; i++) {
+		pointlights.emplace_back(glm::linearRand(glm::vec3(-10, -10, -10), glm::vec3(10, 10, 10)), 5, glm::linearRand(glm::vec3(0, 0, 0), glm::vec3(1, 1, 1)));
+	}
 	// TODO: choose between memory mapping and staging buffer
 	//  (given that the lights are moving)
-
 	int light_num = pointlights.size();
 
 	VkDeviceSize bufferSize = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(int);
@@ -1343,6 +1342,7 @@ void VulkanContext::updateUniformBuffer()
 	// TODO: maybe I shouldn't use single time buffer
 
 	//TODO: use push constants
+
 }
 
 const uint64_t ACQUIRE_NEXT_IMAGE_TIMEOUT{ std::numeric_limits<uint64_t>::max() };
