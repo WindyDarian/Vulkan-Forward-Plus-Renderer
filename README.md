@@ -17,7 +17,7 @@ Members:
 
 ## Milestones
 ### Milestone 2 (11/28/2016)
-* Basic Vulkan framework including:
+* Forward+ framework in progress:
   * Camera control
   * Point lights
   * Normal mapping
