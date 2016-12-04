@@ -25,18 +25,7 @@ struct UniformBufferObject
 	glm::vec3 cam_pos;
 };
 
-struct QueueFamilyIndices
-{
-	int graphicsFamily = -1;
-	int presentFamily = -1;
 
-	bool isComplete()
-	{
-		return graphicsFamily >= 0 && presentFamily >= 0;
-	}
-
-	static QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface);
-};
 
 class VulkanContext
 {
@@ -72,6 +61,8 @@ private:
 
 	VDeleter<VkSurfaceKHR> window_surface{ instance, vkDestroySurfaceKHR };
 	VkQueue present_queue;
+
+	VkQueue compute_queue;
 
 	VDeleter<VkSwapchainKHR> swap_chain{ graphics_device, vkDestroySwapchainKHR };
 	std::vector<VkImage> swap_chain_images;
@@ -180,6 +171,7 @@ private:
 	void createDescriptorSet();
 	void createCommandBuffers();
 	void createSemaphores();
+	void createComputePipeline();
 
 	void updateUniformBuffer(float deltatime);
 	void drawFrame();

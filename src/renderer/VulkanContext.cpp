@@ -55,43 +55,62 @@ struct SwapChainSupportDetails
 	}
 };
 
-QueueFamilyIndices QueueFamilyIndices::findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface)
+struct QueueFamilyIndices
 {
-	QueueFamilyIndices indices;
+	int graphics_family = -1;
+	int present_family = -1;
+	int compute_family = -1;
 
-	uint32_t queuefamily_count = 0;
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &queuefamily_count, nullptr);
-
-	std::vector<VkQueueFamilyProperties> queuefamilies(queuefamily_count);
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &queuefamily_count, queuefamilies.data());
-
-	int i = 0;
-	for (const auto& queuefamily : queuefamilies)
+	bool isComplete()
 	{
-		if (queuefamily.queueCount > 0 && queuefamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
-		{
-			// Graphics queue_family
-			indices.graphicsFamily = i;
-		}
-
-		VkBool32 presentSupport = false;
-		vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
-		if (queuefamily.queueCount > 0 && presentSupport)
-		{
-			// Graphics queue_family
-			indices.presentFamily = i;
-		}
-
-		if (indices.isComplete()) {
-			break;
-		}
-
-		i++;
+		return graphics_family >= 0 && present_family >= 0 && compute_family >= 0;
 	}
 
+	static QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface) 
+	{
+		QueueFamilyIndices indices;
 
-	return indices;
-}
+		uint32_t queuefamily_count = 0;
+		vkGetPhysicalDeviceQueueFamilyProperties(device, &queuefamily_count, nullptr);
+
+		std::vector<VkQueueFamilyProperties> queuefamilies(queuefamily_count);
+		vkGetPhysicalDeviceQueueFamilyProperties(device, &queuefamily_count, queuefamilies.data());
+
+		int i = 0;
+		for (const auto& queuefamily : queuefamilies)
+		{
+			if (queuefamily.queueCount > 0 && queuefamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+			{
+				// Graphics queue_family
+				indices.graphics_family = i;
+			}
+
+			if (queuefamily.queueCount > 0 && queuefamily.queueFlags & VK_QUEUE_COMPUTE_BIT)
+			{
+				// Graphics queue_family
+				indices.compute_family = i;
+			}
+
+			VkBool32 presentSupport = false;
+			vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+			if (queuefamily.queueCount > 0 && presentSupport)
+			{
+				// Graphics queue_family
+				indices.present_family = i;
+			}
+
+			if (indices.isComplete()) {
+				break;
+			}
+
+			i++;
+		}
+
+		return indices;
+	}
+
+};
+
 
 VulkanContext::VulkanContext(GLFWwindow* window)
 {
@@ -181,6 +200,7 @@ void VulkanContext::initVulkan()
 	createRenderPass();
 	createDescriptorSetLayout();
 	createGraphicsPipeline();
+	createComputePipeline();
 	createCommandPool();
 	createDepthResources();
 	createFrameBuffers();
@@ -217,6 +237,7 @@ void VulkanContext::recreateSwapChain()
 	createSwapChainImageViews();
 	createRenderPass();
 	createGraphicsPipeline();
+	createComputePipeline();
 	createDepthResources();
 	createFrameBuffers();
 	createCommandBuffers();
@@ -447,7 +468,7 @@ void VulkanContext::createLogicalDevice()
 	QueueFamilyIndices indices = QueueFamilyIndices::findQueueFamilies(physical_device, static_cast<VkSurfaceKHR>(window_surface));
 
 	std::vector <VkDeviceQueueCreateInfo> queue_create_infos;
-	std::set<int> queue_families = { indices.graphicsFamily, indices.presentFamily };
+	std::set<int> queue_families = { indices.graphics_family, indices.present_family };
 
 	float queue_priority = 1.0f;
 	for (int family : queue_families)
@@ -455,7 +476,7 @@ void VulkanContext::createLogicalDevice()
 		// Create a graphics queue
 		VkDeviceQueueCreateInfo queue_create_info = {};
 		queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-		queue_create_info.queueFamilyIndex = indices.graphicsFamily;
+		queue_create_info.queueFamilyIndex = indices.graphics_family;
 		queue_create_info.queueCount = 1;
 
 		queue_create_info.pQueuePriorities = &queue_priority;
@@ -493,8 +514,8 @@ void VulkanContext::createLogicalDevice()
 		throw std::runtime_error("Failed to create logical device!");
 	}
 
-	vkGetDeviceQueue(graphics_device, indices.graphicsFamily, 0, &graphics_queue);
-	vkGetDeviceQueue(graphics_device, indices.presentFamily, 0, &present_queue);
+	vkGetDeviceQueue(graphics_device, indices.graphics_family, 0, &graphics_queue);
+	vkGetDeviceQueue(graphics_device, indices.present_family, 0, &present_queue);
 }
 
 void VulkanContext::createSwapChain()
@@ -524,9 +545,9 @@ void VulkanContext::createSwapChain()
 	// VK_IMAGE_USAGE_TRANSFER_DST_BIT and memory operation to enable post processing
 
 	QueueFamilyIndices indices = QueueFamilyIndices::findQueueFamilies(physical_device, window_surface);
-	uint32_t queueFamilyIndices[] = { (uint32_t)indices.graphicsFamily, (uint32_t)indices.presentFamily };
+	uint32_t queueFamilyIndices[] = { (uint32_t)indices.graphics_family, (uint32_t)indices.present_family };
 
-	if (indices.graphicsFamily != indices.presentFamily)
+	if (indices.graphics_family != indices.present_family)
 	{
 		create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
 		create_info.queueFamilyIndexCount = 2;
@@ -895,7 +916,7 @@ void VulkanContext::createCommandPool()
 
 	VkCommandPoolCreateInfo pool_info = {};
 	pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	pool_info.queueFamilyIndex = indices.graphicsFamily;
+	pool_info.queueFamilyIndex = indices.graphics_family;
 	pool_info.flags = 0; // Optional
 	// hint the command pool will rerecord buffers by VK_COMMAND_POOL_CREATE_TRANSIENT_BIT
 	// allow buffers to be rerecorded individually by VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
@@ -1061,7 +1082,7 @@ void VulkanContext::createLights()
 	}
 	// TODO: choose between memory mapping and staging buffer
 	//  (given that the lights are moving)
-	int light_num = pointlights.size();
+	auto light_num = static_cast<int>(pointlights.size());
 
 	VkDeviceSize bufferSize = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(int);
 
@@ -1301,6 +1322,21 @@ void VulkanContext::createSemaphores()
 	}
 }
 
+void VulkanContext::createComputePipeline()
+{
+	// TODO: I think I should have it as a member
+	auto compute_queue_family_index = QueueFamilyIndices::findQueueFamilies(physical_device, window_surface).compute_family;
+
+	VkDeviceQueueCreateInfo queueCreateInfo = {};
+	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	queueCreateInfo.pNext = NULL;
+	queueCreateInfo.queueFamilyIndex = compute_queue_family_index;
+	queueCreateInfo.queueCount = 1;
+	vkGetDeviceQueue(graphics_device, compute_queue_family_index, 0, &compute_queue);
+
+	//TODO
+}
+
 void VulkanContext::updateUniformBuffer(float deltatime)
 {
 	static auto start_time = std::chrono::high_resolution_clock::now();
@@ -1326,7 +1362,7 @@ void VulkanContext::updateUniformBuffer(float deltatime)
 	// TODO: maybe I shouldn't use single time buffer
 
 	//TODO: use push constants
-	int light_num = pointlights.size();
+	auto light_num = static_cast<int>(pointlights.size());
 	VkDeviceSize bufferSize = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(int);
 
 	for (int i = 0; i < light_num; i++) {
