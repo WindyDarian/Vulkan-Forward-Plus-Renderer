@@ -87,6 +87,9 @@ private:
 	VDeleter<VkPipelineLayout> pipeline_layout{ graphics_device, vkDestroyPipelineLayout };
 	VDeleter<VkPipeline> graphics_pipeline{ graphics_device, vkDestroyPipeline };
 
+	VDeleter<VkDescriptorSetLayout> compute_descriptor_set_layout{ graphics_device, vkDestroyDescriptorSetLayout };
+	
+
 	// Command buffers
 	VDeleter<VkCommandPool> command_pool{ graphics_device, vkDestroyCommandPool };
 	std::vector<VkCommandBuffer> command_buffers; // buffers will be released when pool destroyed
@@ -1530,6 +1533,10 @@ void _VulkanContext_Impl::createSemaphores()
 	}
 }
 
+
+/** 
+* Create compute pipeline for light culling
+*/
 void _VulkanContext_Impl::createComputePipeline()
 {
 	// TODO: I think I should have it as a member
@@ -1542,6 +1549,41 @@ void _VulkanContext_Impl::createComputePipeline()
 	queueCreateInfo.queueCount = 1;
 	vkGetDeviceQueue(graphics_device, compute_queue_family_index, 0, &compute_queue);
 
+	std::vector<VkDescriptorSetLayoutBinding> set_layout_bindings = {};
+
+	{
+		// create descriptor for storage buffer for light culling results
+		VkDescriptorSetLayoutBinding lb = {};
+		lb.binding = 0;
+		lb.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		lb.descriptorCount = 1;
+		lb.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		lb.pImmutableSamplers = nullptr; // Optional
+		set_layout_bindings.push_back(lb);
+	}
+
+	{
+		// uniform buffer for point lights
+		VkDescriptorSetLayoutBinding lb = {};
+		lb.binding = 1;
+		lb.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		lb.descriptorCount = 1;  // maybe we can use this for different types of lights
+		lb.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		lb.pImmutableSamplers = nullptr; // Optional
+		set_layout_bindings.push_back(lb);
+	}
+
+	VkDescriptorSetLayoutCreateInfo layout_info = {};
+	layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layout_info.bindingCount = static_cast<uint32_t>(set_layout_bindings.size());
+	layout_info.pBindings = set_layout_bindings.data();
+
+	auto result = vkCreateDescriptorSetLayout(graphics_device, &layout_info, nullptr, &compute_descriptor_set_layout);
+
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Unable to create descriptor layout for command queue!");
+	}
 	//TODO
 }
 
