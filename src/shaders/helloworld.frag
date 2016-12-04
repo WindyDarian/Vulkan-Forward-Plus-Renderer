@@ -5,7 +5,6 @@ struct PointLight {
 	vec3 pos;
 	float radius;
 	vec3 intensity;
-    float padding;
 };
 
 layout(std140, set = 0, binding = 0) uniform UniformBufferObject
