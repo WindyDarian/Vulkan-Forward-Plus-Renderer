@@ -60,8 +60,6 @@ public:
 		, const VkAllocationCallbacks* pAllocator
 		, VkDebugReportCallbackEXT* pCallback);
 
-
-
 private:
 	GLFWwindow* window;
 
@@ -1119,8 +1117,6 @@ void _VulkanContext_Impl::createFrameBuffers()
 		}
 	}
 }
-
-
 
 void _VulkanContext_Impl::createCommandPool()
 {
