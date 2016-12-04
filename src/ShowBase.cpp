@@ -335,8 +335,7 @@ void ShowBase::run()
 }
 
 ShowBase::ShowBase()
-{
-	p_impl = std::make_unique<_ShowBase_Impl>();
-}
+	: p_impl(std::make_unique<_ShowBase_Impl>())
+{}
 
 ShowBase::~ShowBase() = default; 

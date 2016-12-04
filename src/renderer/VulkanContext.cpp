@@ -3,14 +3,23 @@
 
 #include "VulkanContext.h"
 
+#include "VDeleter.h"
+#include "../util.h"
 #include "vulkan_util.h"
 
+// TODO: DELETE ME
+#include "../Scene.h"
+
+#include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/random.hpp>
 #include <stb_image.h>
 
+#include <vulkan/vulkan.h>
+
 #include <functional>
 #include <vector>
+#include <array>
 #include <unordered_set>
 #include <string>
 #include <cstring>
@@ -21,6 +30,209 @@
 #include <iostream>
 
 using util::Vertex;
+
+struct UniformBufferObject
+{
+	// todo merge these 3
+	glm::mat4 model;
+	glm::mat4 view;
+	glm::mat4 proj;
+	glm::vec3 cam_pos;
+};
+
+class _VulkanContext_Impl
+{
+public:
+	_VulkanContext_Impl(GLFWwindow* window);
+
+	void resize(int width, int height);
+	void requestDraw(float deltatime);
+	void cleanUp();
+
+	void setCamera(const glm::mat4 & view, const glm::vec3 campos);
+
+	static void DestroyDebugReportCallbackEXT(VkInstance instance
+		, VkDebugReportCallbackEXT callback
+		, const VkAllocationCallbacks* pAllocator);
+
+	static VkResult CreateDebugReportCallbackEXT(VkInstance instance
+		, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo
+		, const VkAllocationCallbacks* pAllocator
+		, VkDebugReportCallbackEXT* pCallback);
+
+
+
+private:
+	GLFWwindow* window;
+
+	VDeleter<VkInstance> instance{ vkDestroyInstance };
+	VDeleter<VkDebugReportCallbackEXT> callback{ instance, DestroyDebugReportCallbackEXT };
+	VkPhysicalDevice physical_device;
+
+	VDeleter<VkDevice> graphics_device{ vkDestroyDevice }; //logical device
+	VkQueue graphics_queue;
+
+	VDeleter<VkSurfaceKHR> window_surface{ instance, vkDestroySurfaceKHR };
+	VkQueue present_queue;
+
+	VkQueue compute_queue;
+
+	VDeleter<VkSwapchainKHR> swap_chain{ graphics_device, vkDestroySwapchainKHR };
+	std::vector<VkImage> swap_chain_images;
+	VkFormat swap_chain_image_format;
+	VkExtent2D swap_chain_extent;
+	std::vector<VDeleter<VkImageView>> swap_chain_imageviews;
+	std::vector<VDeleter<VkFramebuffer>> swap_chain_framebuffers;
+	VDeleter<VkRenderPass> render_pass{ graphics_device, vkDestroyRenderPass };
+
+	VDeleter<VkDescriptorSetLayout> descriptor_set_layout{ graphics_device, vkDestroyDescriptorSetLayout };
+	VDeleter<VkPipelineLayout> pipeline_layout{ graphics_device, vkDestroyPipelineLayout };
+	VDeleter<VkPipeline> graphics_pipeline{ graphics_device, vkDestroyPipeline };
+
+	// Command buffers
+	VDeleter<VkCommandPool> command_pool{ graphics_device, vkDestroyCommandPool };
+	std::vector<VkCommandBuffer> command_buffers; // buffers will be released when pool destroyed
+
+	VDeleter<VkSemaphore> image_available_semaphore{ graphics_device, vkDestroySemaphore };
+	VDeleter<VkSemaphore> render_finished_semaphore{ graphics_device, vkDestroySemaphore };
+
+	// only one image buffer for depth because only one draw operation happens at one time
+	VDeleter<VkImage> depth_image{ graphics_device, vkDestroyImage };
+	VDeleter<VkDeviceMemory> depth_image_memory{ graphics_device, vkFreeMemory };
+	VDeleter<VkImageView> depth_image_view{ graphics_device, vkDestroyImageView };
+
+	// texture image
+	VDeleter<VkImage> texture_image{ graphics_device, vkDestroyImage };
+	VDeleter<VkDeviceMemory> texture_image_memory{ graphics_device, vkFreeMemory };
+	VDeleter<VkImageView> texture_image_view{ graphics_device, vkDestroyImageView };
+	VDeleter<VkImage> normalmap_image{ graphics_device, vkDestroyImage };
+	VDeleter<VkDeviceMemory> normalmap_image_memory{ graphics_device, vkFreeMemory };
+	VDeleter<VkImageView> normalmap_image_view{ graphics_device, vkDestroyImageView };
+	VDeleter<VkSampler> texture_sampler{ graphics_device, vkDestroySampler };
+
+	// uniform buffer and descriptor
+	VDeleter<VkBuffer> uniform_staging_buffer{ graphics_device, vkDestroyBuffer };
+	VDeleter<VkDeviceMemory> uniform_staging_buffer_memory{ graphics_device, vkFreeMemory };
+	VDeleter<VkBuffer> uniform_buffer{ graphics_device, vkDestroyBuffer };
+	VDeleter<VkDeviceMemory> uniform_buffer_memory{ graphics_device, vkFreeMemory };
+
+	VDeleter<VkDescriptorPool> descriptor_pool{ graphics_device, vkDestroyDescriptorPool };
+	VkDescriptorSet descriptor_set;
+
+	// vertex buffer
+	VDeleter<VkBuffer> vertex_buffer{ this->graphics_device, vkDestroyBuffer };
+	VDeleter<VkDeviceMemory> vertex_buffer_memory{ graphics_device, vkFreeMemory };
+	VDeleter<VkBuffer> index_buffer{ graphics_device, vkDestroyBuffer };
+	VDeleter<VkDeviceMemory> index_buffer_memory{ graphics_device, vkFreeMemory };
+
+	VDeleter<VkBuffer> pointlight_buffer{ this->graphics_device, vkDestroyBuffer };
+	VDeleter<VkDeviceMemory> pointlight_buffer_memory{ graphics_device, vkFreeMemory };
+
+	std::vector<util::Vertex> vertices;
+	std::vector<uint32_t> vertex_indices;
+
+	std::vector<PointLight> pointlights;
+	const int MAX_POINT_LIGHT_COUNT = 1000;
+	const glm::vec3 LIGHTPOS_MIN = { -15, -10, -20 };
+	const glm::vec3 LIGHTPOS_MAX = { 15, 20, 20 };
+
+	int window_framebuffer_width;
+	int window_framebuffer_height;
+
+	glm::mat4 view_matrix;
+	glm::vec3 cam_pos;
+
+#ifdef NDEBUG
+	// if not debugging
+	const bool ENABLE_VALIDATION_LAYERS = false;
+#else
+	const bool ENABLE_VALIDATION_LAYERS = true;
+#endif
+
+	const std::vector<const char*> VALIDATION_LAYERS = {
+		"VK_LAYER_LUNARG_standard_validation"
+	};
+
+	const std::vector<const char*> DEVICE_EXTENSIONS = {
+		VK_KHR_SWAPCHAIN_EXTENSION_NAME
+	};
+
+	void initVulkan();
+
+	void recreateSwapChain();
+
+	void createInstance();
+	void setupDebugCallback();
+	void createWindowSurface();
+	void pickPhysicalDevice();
+	void createLogicalDevice();
+	void createSwapChain();
+	void createSwapChainImageViews();
+	void createRenderPass();
+	void createDescriptorSetLayout();
+	void createGraphicsPipeline();
+	void createCommandPool();
+	void createDepthResources();
+	void createFrameBuffers();
+	void createTextureAndNormal();
+	void createTextureSampler();
+	void createVertexBuffer();
+	void createIndexBuffer();
+	void createUniformBuffer();
+	void createLights();
+	void createDescriptorPool();
+	void createDescriptorSet();
+	void createCommandBuffers();
+	void createSemaphores();
+	void createComputePipeline();
+
+	void updateUniformBuffer(float deltatime);
+	void drawFrame();
+
+	void createShaderModule(const std::vector<char>& code, VkShaderModule* p_shader_module);
+
+	bool checkValidationLayerSupport();
+	std::vector<const char*> getRequiredExtensions();
+	bool isDeviceSuitable(VkPhysicalDevice device);
+	bool checkDeviceExtensionSupport(VkPhysicalDevice device);
+
+	VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& available_formats);
+	VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& available_present_modes);
+	VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+	VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+	inline VkFormat findDepthFormat()
+	{
+		return findSupportedFormat(
+		{ VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT }
+			, VK_IMAGE_TILING_OPTIMAL
+			, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
+		);
+	}
+
+	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags property_bits
+		, VkBuffer* p_buffer, VkDeviceMemory* p_buffer_memory);
+	void copyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
+
+	void createImage(uint32_t image_width, uint32_t image_height
+		, VkFormat format, VkImageTiling tiling
+		, VkImageUsageFlags usage, VkMemoryPropertyFlags memory_properties
+		, VkImage* p_vkimage, VkDeviceMemory* p_image_memory);
+	void copyImage(VkImage src_image, VkImage dst_image, uint32_t width, uint32_t height);
+	void transitImageLayout(VkImage image, VkImageLayout old_layout, VkImageLayout new_layout);
+
+	void createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspect_mask, VkImageView * p_image_view);
+
+	void loadImageFromFile(std::string path, VkImage* p_vkimage, VkDeviceMemory* p_image_memory, VkImageView * p_image_view);
+
+	VkCommandBuffer beginSingleTimeCommands();
+	void endSingleTimeCommands(VkCommandBuffer commandBuffer);
+
+	// Called on vulcan command buffer recording
+	void recordCopyBuffer(VkCommandBuffer command_buffer, VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
+	void recordCopyImage(VkCommandBuffer command_buffer, VkImage src_image, VkImage dst_image, uint32_t width, uint32_t height);
+	void recordTransitImageLayout(VkCommandBuffer command_buffer, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout);
+};
+
 
 struct SwapChainSupportDetails
 {
@@ -112,7 +324,7 @@ struct QueueFamilyIndices
 };
 
 
-VulkanContext::VulkanContext(GLFWwindow* window)
+_VulkanContext_Impl::_VulkanContext_Impl(GLFWwindow* window)
 {
 	if (!window)
 	{
@@ -126,7 +338,7 @@ VulkanContext::VulkanContext(GLFWwindow* window)
 	initVulkan();
 }
 
-VkResult VulkanContext::CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback)
+VkResult _VulkanContext_Impl::CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback)
 {
 	auto func = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT");
 	if (func != nullptr)
@@ -139,7 +351,7 @@ VkResult VulkanContext::CreateDebugReportCallbackEXT(VkInstance instance, const 
 	}
 }
 
-void VulkanContext::DestroyDebugReportCallbackEXT(VkInstance instance, VkDebugReportCallbackEXT callback, const VkAllocationCallbacks* pAllocator)
+void _VulkanContext_Impl::DestroyDebugReportCallbackEXT(VkInstance instance, VkDebugReportCallbackEXT callback, const VkAllocationCallbacks* pAllocator)
 {
 	auto func = (PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugReportCallbackEXT");
 	if (func != nullptr) {
@@ -164,31 +376,31 @@ VkBool32 debugCallback(
 	return VK_FALSE;
 }
 
-void VulkanContext::resize(int width, int height)
+void _VulkanContext_Impl::resize(int width, int height)
 {
 	if (width == 0 || height == 0) return;
 
 	recreateSwapChain();
 }
 
-void VulkanContext::requestDraw(float deltatime)
+void _VulkanContext_Impl::requestDraw(float deltatime)
 {
 	updateUniformBuffer(deltatime); // TODO: there is graphics queue waiting in copyBuffer() called by this so I don't need to sync CPU and GPU elsewhere... but someday I will make the copy command able to use multiple times and I need to sync on writing the staging buffer
 	drawFrame();
 }
 
-void VulkanContext::cleanUp()
+void _VulkanContext_Impl::cleanUp()
 {
 	vkDeviceWaitIdle(graphics_device);
 }
 
-void VulkanContext::setCamera(const glm::mat4 & view, const glm::vec3 campos)
+void _VulkanContext_Impl::setCamera(const glm::mat4 & view, const glm::vec3 campos)
 {
 	view_matrix = view;
 	this->cam_pos = campos;
 }
 
-void VulkanContext::initVulkan()
+void _VulkanContext_Impl::initVulkan()
 {
 	createInstance();
 	setupDebugCallback();
@@ -219,7 +431,7 @@ void VulkanContext::initVulkan()
 }
 
 // Needs to be called right after instance creation because it may influence device selection
-void VulkanContext::createWindowSurface()
+void _VulkanContext_Impl::createWindowSurface()
 {
 	auto result = glfwCreateWindowSurface(instance, window, nullptr, &window_surface);
 
@@ -229,7 +441,7 @@ void VulkanContext::createWindowSurface()
 	}
 }
 
-void VulkanContext::recreateSwapChain()
+void _VulkanContext_Impl::recreateSwapChain()
 {
 	vkDeviceWaitIdle(graphics_device);
 
@@ -243,7 +455,7 @@ void VulkanContext::recreateSwapChain()
 	createCommandBuffers();
 }
 
-void VulkanContext::createInstance()
+void _VulkanContext_Impl::createInstance()
 {
 	if (ENABLE_VALIDATION_LAYERS && !checkValidationLayerSupport())
 	{
@@ -312,7 +524,7 @@ void VulkanContext::createInstance()
 
 }
 
-bool VulkanContext::checkValidationLayerSupport()
+bool _VulkanContext_Impl::checkValidationLayerSupport()
 {
 	uint32_t layerCount;
 	vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
@@ -341,7 +553,7 @@ bool VulkanContext::checkValidationLayerSupport()
 	return true;
 }
 
-std::vector<const char*> VulkanContext::getRequiredExtensions()
+std::vector<const char*> _VulkanContext_Impl::getRequiredExtensions()
 {
 	std::vector<const char*> extensions;
 
@@ -363,7 +575,7 @@ std::vector<const char*> VulkanContext::getRequiredExtensions()
 	// should I free sth after?
 }
 
-void VulkanContext::setupDebugCallback()
+void _VulkanContext_Impl::setupDebugCallback()
 {
 	if (!ENABLE_VALIDATION_LAYERS) return;
 
@@ -382,7 +594,7 @@ void VulkanContext::setupDebugCallback()
 
 
 // Pick up a graphics card to use
-void VulkanContext::pickPhysicalDevice()
+void _VulkanContext_Impl::pickPhysicalDevice()
 {
 	// This object will be implicitly destroyed when the VkInstance is destroyed, so we don't need to add a delete wrapper.
 	VkPhysicalDevice physial_device = VK_NULL_HANDLE;
@@ -420,7 +632,7 @@ void VulkanContext::pickPhysicalDevice()
 	this->physical_device = physial_device;
 }
 
-bool VulkanContext::isDeviceSuitable(VkPhysicalDevice device)
+bool _VulkanContext_Impl::isDeviceSuitable(VkPhysicalDevice device)
 {
 	//VkPhysicalDeviceProperties properties;
 	//vkGetPhysicalDeviceProperties(device, &properties);
@@ -445,7 +657,7 @@ bool VulkanContext::isDeviceSuitable(VkPhysicalDevice device)
 	return indices.isComplete() && extensions_supported && swap_chain_adequate;
 }
 
-bool VulkanContext::checkDeviceExtensionSupport(VkPhysicalDevice device)
+bool _VulkanContext_Impl::checkDeviceExtensionSupport(VkPhysicalDevice device)
 {
 	uint32_t extension_count;
 	vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, nullptr);
@@ -463,7 +675,7 @@ bool VulkanContext::checkDeviceExtensionSupport(VkPhysicalDevice device)
 	return required_extensions.empty();
 }
 
-void VulkanContext::createLogicalDevice()
+void _VulkanContext_Impl::createLogicalDevice()
 {
 	QueueFamilyIndices indices = QueueFamilyIndices::findQueueFamilies(physical_device, static_cast<VkSurfaceKHR>(window_surface));
 
@@ -518,7 +730,7 @@ void VulkanContext::createLogicalDevice()
 	vkGetDeviceQueue(graphics_device, indices.present_family, 0, &present_queue);
 }
 
-void VulkanContext::createSwapChain()
+void _VulkanContext_Impl::createSwapChain()
 {
 	auto support_details = SwapChainSupportDetails::querySwapChainSupport(physical_device, window_surface);
 
@@ -585,7 +797,7 @@ void VulkanContext::createSwapChain()
 	swap_chain_extent = extent;
 }
 
-void VulkanContext::createSwapChainImageViews()
+void _VulkanContext_Impl::createSwapChainImageViews()
 {
 	swap_chain_imageviews.clear(); // VDeleter will delete old objects
 	swap_chain_imageviews.reserve(swap_chain_images.size());
@@ -597,7 +809,7 @@ void VulkanContext::createSwapChainImageViews()
 	}
 }
 
-void VulkanContext::createRenderPass()
+void _VulkanContext_Impl::createRenderPass()
 {
 	VkAttachmentDescription color_attachment = {};
 	color_attachment.format = swap_chain_image_format;
@@ -659,7 +871,7 @@ void VulkanContext::createRenderPass()
 	}
 }
 
-void VulkanContext::createDescriptorSetLayout()
+void _VulkanContext_Impl::createDescriptorSetLayout()
 {
 	// create descriptor for uniform buffer objects
 	VkDescriptorSetLayoutBinding ubo_layout_binding = {};
@@ -709,7 +921,7 @@ void VulkanContext::createDescriptorSetLayout()
 
 }
 
-void VulkanContext::createGraphicsPipeline()
+void _VulkanContext_Impl::createGraphicsPipeline()
 {
 	auto vert_shader_code = util::readFile(util::getContentPath("helloworld_vert.spv"));
 	auto frag_shader_code = util::readFile(util::getContentPath("helloworld_frag.spv"));
@@ -880,7 +1092,7 @@ void VulkanContext::createGraphicsPipeline()
 	}
 }
 
-void VulkanContext::createFrameBuffers()
+void _VulkanContext_Impl::createFrameBuffers()
 {
 	swap_chain_framebuffers.clear(); // VDeleter will delete old objects
 	swap_chain_framebuffers.reserve(swap_chain_imageviews.size());
@@ -910,7 +1122,7 @@ void VulkanContext::createFrameBuffers()
 
 
 
-void VulkanContext::createCommandPool()
+void _VulkanContext_Impl::createCommandPool()
 {
 	auto indices = QueueFamilyIndices::findQueueFamilies(physical_device, window_surface);
 
@@ -929,7 +1141,7 @@ void VulkanContext::createCommandPool()
 }
 
 
-void VulkanContext::createDepthResources()
+void _VulkanContext_Impl::createDepthResources()
 {
 	VkFormat depth_format = findDepthFormat();
 	createImage(swap_chain_extent.width, swap_chain_extent.height
@@ -943,13 +1155,13 @@ void VulkanContext::createDepthResources()
 	transitImageLayout(depth_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 }
 
-void VulkanContext::createTextureAndNormal()
+void _VulkanContext_Impl::createTextureAndNormal()
 {
 	loadImageFromFile(util::TEXTURE_PATH, &texture_image, &texture_image_memory, &texture_image_view);
 	loadImageFromFile(util::NORMALMAP_PATH, &normalmap_image, &normalmap_image_memory, &normalmap_image_view);
 }
 
-void VulkanContext::createTextureSampler()
+void _VulkanContext_Impl::createTextureSampler()
 {
 	VkSamplerCreateInfo sampler_info = {};
 	sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -999,7 +1211,7 @@ uint32_t findMemoryType(uint32_t type_filter, VkMemoryPropertyFlags properties, 
 	throw std::runtime_error("Failed to find suitable memory type!");
 }
 
-void VulkanContext::createVertexBuffer()
+void _VulkanContext_Impl::createVertexBuffer()
 {
 	VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
 
@@ -1030,7 +1242,7 @@ void VulkanContext::createVertexBuffer()
 	copyBuffer(staging_buffer, vertex_buffer, buffer_size);
 }
 
-void VulkanContext::createIndexBuffer()
+void _VulkanContext_Impl::createIndexBuffer()
 {
 	VkDeviceSize buffer_size = sizeof(vertex_indices[0]) * vertex_indices.size();
 
@@ -1058,7 +1270,7 @@ void VulkanContext::createIndexBuffer()
 	copyBuffer(staging_buffer, index_buffer, buffer_size);
 }
 
-void VulkanContext::createUniformBuffer()
+void _VulkanContext_Impl::createUniformBuffer()
 {
 	VkDeviceSize bufferSize = sizeof(UniformBufferObject);
 
@@ -1074,7 +1286,7 @@ void VulkanContext::createUniformBuffer()
 		, &uniform_buffer_memory);
 }
 
-void VulkanContext::createLights()
+void _VulkanContext_Impl::createLights()
 {
 	//glm::linearRand(glm::vec3(10, 10, 10), glm::vec3(-10, -10, -10));
 	for (int i = 0; i < 200; i++) {
@@ -1123,7 +1335,7 @@ void VulkanContext::createLights()
 
 }
 
-void VulkanContext::createDescriptorPool()
+void _VulkanContext_Impl::createDescriptorPool()
 {
 	// Create descriptor pool for uniform buffer
 	std::array<VkDescriptorPoolSize, 4> pool_sizes = {};
@@ -1151,7 +1363,7 @@ void VulkanContext::createDescriptorPool()
 	}
 }
 
-void VulkanContext::createDescriptorSet()
+void _VulkanContext_Impl::createDescriptorSet()
 {
 	VkDescriptorSetLayout layouts[] = { descriptor_set_layout };
 	VkDescriptorSetAllocateInfo alloc_info = {};
@@ -1234,7 +1446,7 @@ void VulkanContext::createDescriptorSet()
 		, descriptor_writes.data(), 0, nullptr);
 }
 
-void VulkanContext::createCommandBuffers()
+void _VulkanContext_Impl::createCommandBuffers()
 {
 	// Free old command buffers, if any
 	if (command_buffers.size() > 0)
@@ -1308,7 +1520,7 @@ void VulkanContext::createCommandBuffers()
 	}
 }
 
-void VulkanContext::createSemaphores()
+void _VulkanContext_Impl::createSemaphores()
 {
 	VkSemaphoreCreateInfo semaphore_info = {};
 	semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -1322,7 +1534,7 @@ void VulkanContext::createSemaphores()
 	}
 }
 
-void VulkanContext::createComputePipeline()
+void _VulkanContext_Impl::createComputePipeline()
 {
 	// TODO: I think I should have it as a member
 	auto compute_queue_family_index = QueueFamilyIndices::findQueueFamilies(physical_device, window_surface).compute_family;
@@ -1337,7 +1549,7 @@ void VulkanContext::createComputePipeline()
 	//TODO
 }
 
-void VulkanContext::updateUniformBuffer(float deltatime)
+void _VulkanContext_Impl::updateUniformBuffer(float deltatime)
 {
 	static auto start_time = std::chrono::high_resolution_clock::now();
 
@@ -1381,7 +1593,7 @@ void VulkanContext::updateUniformBuffer(float deltatime)
 
 const uint64_t ACQUIRE_NEXT_IMAGE_TIMEOUT{ std::numeric_limits<uint64_t>::max() };
 
-void VulkanContext::drawFrame()
+void _VulkanContext_Impl::drawFrame()
 {
 	// 1. Acquiring an image from the swap chain
 	uint32_t image_index;
@@ -1441,7 +1653,7 @@ void VulkanContext::drawFrame()
 	}
 }
 
-void VulkanContext::createShaderModule(const std::vector<char>& code, VkShaderModule* p_shader_module)
+void _VulkanContext_Impl::createShaderModule(const std::vector<char>& code, VkShaderModule* p_shader_module)
 {
 	VkShaderModuleCreateInfo create_info = {};
 	create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -1455,7 +1667,7 @@ void VulkanContext::createShaderModule(const std::vector<char>& code, VkShaderMo
 	}
 }
 
-VkSurfaceFormatKHR VulkanContext::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& available_formats)
+VkSurfaceFormatKHR _VulkanContext_Impl::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& available_formats)
 {
 	// When free to choose format
 	if (available_formats.size() == 1 && available_formats[0].format == VK_FORMAT_UNDEFINED)
@@ -1477,7 +1689,7 @@ VkSurfaceFormatKHR VulkanContext::chooseSwapSurfaceFormat(const std::vector<VkSu
 	return available_formats[0];
 }
 
-VkPresentModeKHR VulkanContext::chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& available_present_modes)
+VkPresentModeKHR _VulkanContext_Impl::chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& available_present_modes)
 {
 	for (const auto& available_present_mode : available_present_modes)
 	{
@@ -1490,7 +1702,7 @@ VkPresentModeKHR VulkanContext::chooseSwapPresentMode(const std::vector<VkPresen
 	return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-VkExtent2D VulkanContext::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities)
+VkExtent2D _VulkanContext_Impl::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities)
 {
 	// The swap extent is the resolution of the swap chain images
 	if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
@@ -1510,7 +1722,7 @@ VkExtent2D VulkanContext::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capab
 	}
 }
 
-VkFormat VulkanContext::findSupportedFormat(const std::vector<VkFormat>& candidates
+VkFormat _VulkanContext_Impl::findSupportedFormat(const std::vector<VkFormat>& candidates
 	, VkImageTiling tiling, VkFormatFeatureFlags features)
 {
 	for (VkFormat format : candidates)
@@ -1531,7 +1743,7 @@ VkFormat VulkanContext::findSupportedFormat(const std::vector<VkFormat>& candida
 	throw std::runtime_error("Failed to find supported format!");
 }
 
-void VulkanContext::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags property_bits
+void _VulkanContext_Impl::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags property_bits
 	, VkBuffer* p_buffer, VkDeviceMemory* p_buffer_memory)
 {
 	// create vertex buffer
@@ -1574,7 +1786,7 @@ void VulkanContext::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, Vk
 	}
 }
 
-void VulkanContext::copyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size)
+void _VulkanContext_Impl::copyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size)
 {
 	VkCommandBuffer copy_command_buffer = beginSingleTimeCommands();
 
@@ -1583,7 +1795,7 @@ void VulkanContext::copyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDevic
 	endSingleTimeCommands(copy_command_buffer);
 }
 
-void VulkanContext::createImage(uint32_t image_width, uint32_t image_height
+void _VulkanContext_Impl::createImage(uint32_t image_width, uint32_t image_height
 	, VkFormat format, VkImageTiling tiling
 	, VkImageUsageFlags usage, VkMemoryPropertyFlags memory_properties
 	, VkImage* p_vkimage, VkDeviceMemory* p_image_memory)
@@ -1632,7 +1844,7 @@ void VulkanContext::createImage(uint32_t image_width, uint32_t image_height
 	vkBindImageMemory(graphics_device, vkimage, *p_image_memory, 0);
 }
 
-void VulkanContext::copyImage(VkImage src_image, VkImage dst_image, uint32_t width, uint32_t height)
+void _VulkanContext_Impl::copyImage(VkImage src_image, VkImage dst_image, uint32_t width, uint32_t height)
 {
 	VkCommandBuffer command_buffer = beginSingleTimeCommands();
 
@@ -1641,7 +1853,7 @@ void VulkanContext::copyImage(VkImage src_image, VkImage dst_image, uint32_t wid
 	endSingleTimeCommands(command_buffer);
 }
 
-void VulkanContext::transitImageLayout(VkImage image, VkImageLayout old_layout, VkImageLayout new_layout)
+void _VulkanContext_Impl::transitImageLayout(VkImage image, VkImageLayout old_layout, VkImageLayout new_layout)
 {
 	VkCommandBuffer command_buffer = beginSingleTimeCommands();
 
@@ -1650,7 +1862,7 @@ void VulkanContext::transitImageLayout(VkImage image, VkImageLayout old_layout, 
 	endSingleTimeCommands(command_buffer);
 }
 
-void VulkanContext::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspect_mask, VkImageView* p_image_view)
+void _VulkanContext_Impl::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspect_mask, VkImageView* p_image_view)
 {
 	VkImageViewCreateInfo viewInfo = {};
 	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -1676,7 +1888,7 @@ void VulkanContext::createImageView(VkImage image, VkFormat format, VkImageAspec
 	}
 }
 
-void VulkanContext::loadImageFromFile(std::string path, VkImage * p_vkimage, VkDeviceMemory * p_image_memory, VkImageView * p_image_view)
+void _VulkanContext_Impl::loadImageFromFile(std::string path, VkImage * p_vkimage, VkDeviceMemory * p_image_memory, VkImageView * p_image_view)
 {
 	// TODO: maybe move to vulkan_util or a VulkanDevice class
 
@@ -1740,7 +1952,7 @@ void VulkanContext::loadImageFromFile(std::string path, VkImage * p_vkimage, VkD
 
 // create a temperorary command buffer for one-time use
 // and begin recording
-VkCommandBuffer VulkanContext::beginSingleTimeCommands()
+VkCommandBuffer _VulkanContext_Impl::beginSingleTimeCommands()
 {
 	VkCommandBufferAllocateInfo alloc_info = {};
 	alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -1761,7 +1973,7 @@ VkCommandBuffer VulkanContext::beginSingleTimeCommands()
 }
 
 // End recording the single time command, submit then wait for execution and destroy the buffer
-void VulkanContext::endSingleTimeCommands(VkCommandBuffer command_buffer)
+void _VulkanContext_Impl::endSingleTimeCommands(VkCommandBuffer command_buffer)
 {
 	vkEndCommandBuffer(command_buffer);
 
@@ -1777,7 +1989,7 @@ void VulkanContext::endSingleTimeCommands(VkCommandBuffer command_buffer)
 	vkFreeCommandBuffers(graphics_device, command_pool, 1, &command_buffer);
 }
 
-void VulkanContext::recordCopyBuffer(VkCommandBuffer command_buffer, VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size)
+void _VulkanContext_Impl::recordCopyBuffer(VkCommandBuffer command_buffer, VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size)
 {
 	VkBufferCopy copy_region = {};
 	copy_region.srcOffset = 0; // Optional
@@ -1787,7 +1999,7 @@ void VulkanContext::recordCopyBuffer(VkCommandBuffer command_buffer, VkBuffer sr
 	vkCmdCopyBuffer(command_buffer, src_buffer, dst_buffer, 1, &copy_region);
 }
 
-void VulkanContext::recordCopyImage(VkCommandBuffer command_buffer, VkImage src_image, VkImage dst_image, uint32_t width, uint32_t height)
+void _VulkanContext_Impl::recordCopyImage(VkCommandBuffer command_buffer, VkImage src_image, VkImage dst_image, uint32_t width, uint32_t height)
 {
 	VkImageSubresourceLayers sub_besource = {};
 	sub_besource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -1811,7 +2023,7 @@ void VulkanContext::recordCopyImage(VkCommandBuffer command_buffer, VkImage src_
 		);
 }
 
-void VulkanContext::recordTransitImageLayout(VkCommandBuffer command_buffer, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout)
+void _VulkanContext_Impl::recordTransitImageLayout(VkCommandBuffer command_buffer, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout)
 {
 	// barrier is used to ensure a buffer has finished writing before
 	// reading as weel as doing transition
@@ -1872,4 +2084,30 @@ void VulkanContext::recordTransitImageLayout(VkCommandBuffer command_buffer, VkI
 		, 0, nullptr
 		, 1, &barrier
 		);
+}
+
+VulkanContext::VulkanContext(GLFWwindow * window)
+	:p_impl(std::make_unique<_VulkanContext_Impl>(window))
+{}
+
+VulkanContext::~VulkanContext() = default;
+
+void VulkanContext::resize(int width, int height)
+{
+	p_impl->resize(width, height);
+}
+
+void VulkanContext::requestDraw(float deltatime)
+{
+	p_impl->requestDraw(deltatime);
+}
+
+void VulkanContext::cleanUp()
+{
+	p_impl->cleanUp();
+}
+
+void VulkanContext::setCamera(const glm::mat4 & view, const glm::vec3 campos)
+{
+	p_impl->setCamera(view, campos);
 }
