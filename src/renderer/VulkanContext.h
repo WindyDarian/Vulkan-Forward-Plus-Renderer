@@ -7,7 +7,7 @@
 
 #include <memory>
 
-class GLFWwindow;
+struct GLFWwindow;
 class _VulkanContext_Impl;
 
 class VulkanContext

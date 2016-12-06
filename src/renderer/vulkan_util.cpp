@@ -39,3 +39,13 @@ std::array<VkVertexInputAttributeDescription, 4> vulkan_util::getVertexAttribute
 
 	return attr_descriptions;
 }
+
+void vulkan_util::checkResult(VkResult result, const char * what)
+{
+
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error(what);
+	}
+
+}

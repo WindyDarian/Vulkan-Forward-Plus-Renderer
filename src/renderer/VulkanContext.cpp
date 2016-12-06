@@ -16,6 +16,7 @@
 #include <stb_image.h>
 
 #include <vulkan/vulkan.h>
+#include <vulkan/vulkan.hpp>
 
 #include <functional>
 #include <vector>
@@ -31,6 +32,10 @@
 
 using util::Vertex;
 
+const int MAX_POINT_LIGHT_COUNT = 1000;
+const int MAX_POINT_LIGHT_PER_TILE = 63;
+const int TILE_SIZE = 16;
+
 struct UniformBufferObject
 {
 	// todo merge these 3
@@ -39,6 +44,63 @@ struct UniformBufferObject
 	glm::mat4 proj;
 	glm::vec3 cam_pos;
 };
+
+struct QueueFamilyIndices
+{
+	int graphics_family = -1;
+	int present_family = -1;
+	int compute_family = -1;
+
+	bool isComplete()
+	{
+		return graphics_family >= 0 && present_family >= 0 && compute_family >= 0;
+	}
+
+	static QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface)
+	{
+		QueueFamilyIndices indices;
+
+		uint32_t queuefamily_count = 0;
+		vkGetPhysicalDeviceQueueFamilyProperties(device, &queuefamily_count, nullptr);
+
+		std::vector<VkQueueFamilyProperties> queuefamilies(queuefamily_count);
+		vkGetPhysicalDeviceQueueFamilyProperties(device, &queuefamily_count, queuefamilies.data());
+
+		int i = 0;
+		for (const auto& queuefamily : queuefamilies)
+		{
+			if (queuefamily.queueCount > 0 && queuefamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+			{
+				// Graphics queue_family
+				indices.graphics_family = i;
+			}
+
+			if (queuefamily.queueCount > 0 && queuefamily.queueFlags & VK_QUEUE_COMPUTE_BIT)
+			{
+				// Graphics queue_family
+				indices.compute_family = i;
+			}
+
+			VkBool32 presentSupport = false;
+			vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+			if (queuefamily.queueCount > 0 && presentSupport)
+			{
+				// Graphics queue_family
+				indices.present_family = i;
+			}
+
+			if (indices.isComplete()) {
+				break;
+			}
+
+			i++;
+		}
+
+		return indices;
+	}
+
+};
+
 
 class _VulkanContext_Impl
 {
@@ -66,8 +128,10 @@ private:
 	VDeleter<VkInstance> instance{ vkDestroyInstance };
 	VDeleter<VkDebugReportCallbackEXT> callback{ instance, DestroyDebugReportCallbackEXT };
 	VkPhysicalDevice physical_device;
+	QueueFamilyIndices queue_family_indices;
 
 	VDeleter<VkDevice> graphics_device{ vkDestroyDevice }; //logical device
+	vk::Device device; // vulkan.hpp wraper for graphics_device, maybe I should migrate all code to vulkan-hpp
 	VkQueue graphics_queue;
 
 	VDeleter<VkSurfaceKHR> window_surface{ instance, vkDestroySurfaceKHR };
@@ -88,7 +152,12 @@ private:
 	VDeleter<VkPipeline> graphics_pipeline{ graphics_device, vkDestroyPipeline };
 
 	VDeleter<VkDescriptorSetLayout> compute_descriptor_set_layout{ graphics_device, vkDestroyDescriptorSetLayout };
-	
+	VDeleter<VkPipelineLayout> compute_pipeline_layout{ graphics_device, vkDestroyPipelineLayout };
+	VDeleter<VkPipeline> compute_pipeline{ graphics_device, vkDestroyPipeline };
+	VDeleter<VkCommandPool> compute_command_pool{ graphics_device, vkDestroyCommandPool };
+	VkCommandBuffer light_culling_command_buffer = VK_NULL_HANDLE;
+	//VRaii<vk::PipelineLayout> compute_pipeline_layout;
+	//VRaii<vk::Pipeline> compute_pipeline;
 
 	// Command buffers
 	VDeleter<VkCommandPool> command_pool{ graphics_device, vkDestroyCommandPool };
@@ -133,15 +202,23 @@ private:
 	std::vector<uint32_t> vertex_indices;
 
 	std::vector<PointLight> pointlights;
-	const int MAX_POINT_LIGHT_COUNT = 1000;
 	const glm::vec3 LIGHTPOS_MIN = { -15, -10, -20 };
 	const glm::vec3 LIGHTPOS_MAX = { 15, 20, 20 };
+
+	// This storage buffer stores visible lights for each tile
+	// which is output from the light culling compute shader
+	// max MAX_POINT_LIGHT_PER_TILE point lights per tile
+	VDeleter<VkBuffer> light_visibility_buffer{ this->graphics_device, vkDestroyBuffer };
+	VDeleter<VkDeviceMemory> light_visibility_buffer_memory{ graphics_device, vkFreeMemory };
+	VkDeviceSize light_visibility_buffer_size = 0;
 
 	int window_framebuffer_width;
 	int window_framebuffer_height;
 
 	glm::mat4 view_matrix;
 	glm::vec3 cam_pos;
+	int tile_count_per_row;
+	int tile_count_per_col;
 
 #ifdef NDEBUG
 	// if not debugging
@@ -166,6 +243,7 @@ private:
 	void setupDebugCallback();
 	void createWindowSurface();
 	void pickPhysicalDevice();
+	void findQueueFamilyIndices();
 	void createLogicalDevice();
 	void createSwapChain();
 	void createSwapChainImageViews();
@@ -185,8 +263,11 @@ private:
 	void createDescriptorSet();
 	void createCommandBuffers();
 	void createSemaphores();
-	void createComputePipeline();
 
+	void createComputePipeline();
+	void createLightVisibilityBuffer();
+	void createLightCullingCommandBuffer();
+	
 	void updateUniformBuffer(float deltatime);
 	void drawFrame();
 
@@ -234,7 +315,6 @@ private:
 	void recordTransitImageLayout(VkCommandBuffer command_buffer, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout);
 };
 
-
 struct SwapChainSupportDetails
 {
 	VkSurfaceCapabilitiesKHR capabilities;
@@ -268,61 +348,6 @@ struct SwapChainSupportDetails
 	}
 };
 
-struct QueueFamilyIndices
-{
-	int graphics_family = -1;
-	int present_family = -1;
-	int compute_family = -1;
-
-	bool isComplete()
-	{
-		return graphics_family >= 0 && present_family >= 0 && compute_family >= 0;
-	}
-
-	static QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface) 
-	{
-		QueueFamilyIndices indices;
-
-		uint32_t queuefamily_count = 0;
-		vkGetPhysicalDeviceQueueFamilyProperties(device, &queuefamily_count, nullptr);
-
-		std::vector<VkQueueFamilyProperties> queuefamilies(queuefamily_count);
-		vkGetPhysicalDeviceQueueFamilyProperties(device, &queuefamily_count, queuefamilies.data());
-
-		int i = 0;
-		for (const auto& queuefamily : queuefamilies)
-		{
-			if (queuefamily.queueCount > 0 && queuefamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
-			{
-				// Graphics queue_family
-				indices.graphics_family = i;
-			}
-
-			if (queuefamily.queueCount > 0 && queuefamily.queueFlags & VK_QUEUE_COMPUTE_BIT)
-			{
-				// Graphics queue_family
-				indices.compute_family = i;
-			}
-
-			VkBool32 presentSupport = false;
-			vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
-			if (queuefamily.queueCount > 0 && presentSupport)
-			{
-				// Graphics queue_family
-				indices.present_family = i;
-			}
-
-			if (indices.isComplete()) {
-				break;
-			}
-
-			i++;
-		}
-
-		return indices;
-	}
-
-};
 
 
 _VulkanContext_Impl::_VulkanContext_Impl(GLFWwindow* window)
@@ -381,6 +406,8 @@ void _VulkanContext_Impl::resize(int width, int height)
 {
 	if (width == 0 || height == 0) return;
 
+	glfwGetFramebufferSize(window, &window_framebuffer_width, &window_framebuffer_height);
+
 	recreateSwapChain();
 }
 
@@ -407,6 +434,7 @@ void _VulkanContext_Impl::initVulkan()
 	setupDebugCallback();
 	createWindowSurface();
 	pickPhysicalDevice();
+	findQueueFamilyIndices();
 	createLogicalDevice();
 	createSwapChain();
 	createSwapChainImageViews();
@@ -425,9 +453,11 @@ void _VulkanContext_Impl::initVulkan()
 	createIndexBuffer();
 	createUniformBuffer();
 	createLights();
+	createLightVisibilityBuffer();
 	createDescriptorPool();
 	createDescriptorSet();
 	createCommandBuffers();
+	createLightCullingCommandBuffer();
 	createSemaphores();
 }
 
@@ -450,10 +480,11 @@ void _VulkanContext_Impl::recreateSwapChain()
 	createSwapChainImageViews();
 	createRenderPass();
 	createGraphicsPipeline();
-	createComputePipeline();
 	createDepthResources();
 	createFrameBuffers();
 	createCommandBuffers();
+	createLightVisibilityBuffer(); // since it's size will scale with window;
+	createLightCullingCommandBuffer();
 }
 
 void _VulkanContext_Impl::createInstance()
@@ -633,6 +664,16 @@ void _VulkanContext_Impl::pickPhysicalDevice()
 	this->physical_device = physial_device;
 }
 
+void _VulkanContext_Impl::findQueueFamilyIndices()
+{
+	queue_family_indices = QueueFamilyIndices::findQueueFamilies(physical_device, window_surface);
+
+	if (!queue_family_indices.isComplete())
+	{
+		throw std::runtime_error("Queue family indices not complete!");
+	}
+}
+
 bool _VulkanContext_Impl::isDeviceSuitable(VkPhysicalDevice device)
 {
 	//VkPhysicalDeviceProperties properties;
@@ -726,6 +767,7 @@ void _VulkanContext_Impl::createLogicalDevice()
 	{
 		throw std::runtime_error("Failed to create logical device!");
 	}
+	device = graphics_device;
 
 	vkGetDeviceQueue(graphics_device, indices.graphics_family, 0, &graphics_queue);
 	vkGetDeviceQueue(graphics_device, indices.present_family, 0, &present_queue);
@@ -1337,16 +1379,14 @@ void _VulkanContext_Impl::createLights()
 void _VulkanContext_Impl::createDescriptorPool()
 {
 	// Create descriptor pool for uniform buffer
-	std::array<VkDescriptorPoolSize, 4> pool_sizes = {};
+	std::array<VkDescriptorPoolSize, 3> pool_sizes = {};
 	//std::array<VkDescriptorPoolSize, 2> pool_sizes = {};
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	pool_sizes[0].descriptorCount = 1;
+	pool_sizes[0].descriptorCount = 2; // light buffer & camera buffer
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	pool_sizes[1].descriptorCount = 1;
-	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	pool_sizes[2].descriptorCount = 1;
-	pool_sizes[3].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	pool_sizes[3].descriptorCount = 1;
+	pool_sizes[1].descriptorCount = 2; // sampler for color map and normal map
+	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	pool_sizes[2].descriptorCount = 1; // light visiblity buffer
 
 	VkDescriptorPoolCreateInfo pool_info = {};
 	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1542,49 +1582,204 @@ void _VulkanContext_Impl::createComputePipeline()
 	// TODO: I think I should have it as a member
 	auto compute_queue_family_index = QueueFamilyIndices::findQueueFamilies(physical_device, window_surface).compute_family;
 
-	VkDeviceQueueCreateInfo queueCreateInfo = {};
-	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	queueCreateInfo.pNext = NULL;
-	queueCreateInfo.queueFamilyIndex = compute_queue_family_index;
-	queueCreateInfo.queueCount = 1;
-	vkGetDeviceQueue(graphics_device, compute_queue_family_index, 0, &compute_queue);
-
-	std::vector<VkDescriptorSetLayoutBinding> set_layout_bindings = {};
-
+	// Step1: Create Descriptor Set Layout
 	{
-		// create descriptor for storage buffer for light culling results
-		VkDescriptorSetLayoutBinding lb = {};
-		lb.binding = 0;
-		lb.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		lb.descriptorCount = 1;
-		lb.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-		lb.pImmutableSamplers = nullptr; // Optional
-		set_layout_bindings.push_back(lb);
+		VkDeviceQueueCreateInfo queueCreateInfo = {};
+		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		queueCreateInfo.pNext = NULL;
+		queueCreateInfo.queueFamilyIndex = compute_queue_family_index;
+		queueCreateInfo.queueCount = 1;
+		vkGetDeviceQueue(graphics_device, compute_queue_family_index, 0, &compute_queue);
+
+		std::vector<VkDescriptorSetLayoutBinding> set_layout_bindings = {};
+
+		{
+			// create descriptor for storage buffer for light culling results
+			VkDescriptorSetLayoutBinding lb = {};
+			lb.binding = 0;
+			lb.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			lb.descriptorCount = 1;
+			lb.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+			lb.pImmutableSamplers = nullptr; 
+			set_layout_bindings.push_back(lb);
+		}
+
+		{
+			// uniform buffer for point lights
+			VkDescriptorSetLayoutBinding lb = {};
+			lb.binding = 1;
+			lb.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			lb.descriptorCount = 1;  // maybe we can use this for different types of lights
+			lb.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+			lb.pImmutableSamplers = nullptr; 
+			set_layout_bindings.push_back(lb);
+		}
+
+		VkDescriptorSetLayoutCreateInfo layout_info = {};
+		layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+		layout_info.bindingCount = static_cast<uint32_t>(set_layout_bindings.size());
+		layout_info.pBindings = set_layout_bindings.data();
+
+		auto result = vkCreateDescriptorSetLayout(graphics_device, &layout_info, nullptr, &compute_descriptor_set_layout);
+
+		if (result != VK_SUCCESS)
+		{
+			throw std::runtime_error("Unable to create descriptor layout for command queue!");
+		}
+	};
+
+	// Step2: Create Pipeline
+	{
+		VkPipelineLayoutCreateInfo pipeline_layout_info = {};
+		pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		std::array<VkDescriptorSetLayout, 1> set_layouts = { compute_descriptor_set_layout };
+		pipeline_layout_info.setLayoutCount = static_cast<int>(set_layouts.size()); 
+		pipeline_layout_info.pSetLayouts = set_layouts.data(); 
+		pipeline_layout_info.pushConstantRangeCount = 0; 
+		pipeline_layout_info.pPushConstantRanges = 0; 
+
+		vulkan_util::checkResult(vkCreatePipelineLayout(graphics_device, &pipeline_layout_info, nullptr, &compute_pipeline_layout));
+
+		auto light_culling_comp_shader_code = util::readFile(util::getContentPath("light_culling.comp.spv"));
+		
+		VDeleter<VkShaderModule> comp_shader_module{ graphics_device, vkDestroyShaderModule };
+		createShaderModule(light_culling_comp_shader_code, &comp_shader_module);
+		VkPipelineShaderStageCreateInfo comp_shader_stage_info = {};
+		comp_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		comp_shader_stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+		comp_shader_stage_info.module = comp_shader_module;
+		comp_shader_stage_info.pName = "main";
+		
+		VkComputePipelineCreateInfo pipeline_create_info;
+		pipeline_create_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+		pipeline_create_info.stage = comp_shader_stage_info;
+		pipeline_create_info.layout = compute_pipeline_layout;
+		pipeline_create_info.pNext = nullptr;
+		pipeline_create_info.flags = 0;
+		pipeline_create_info.basePipelineHandle = VK_NULL_HANDLE; // not deriving from existing pipeline
+		pipeline_create_info.basePipelineIndex = -1; // Optional
+		vulkan_util::checkResult(vkCreateComputePipelines(graphics_device, VK_NULL_HANDLE, 1, &pipeline_create_info, nullptr, &compute_pipeline));
+	};
+
+	// Step 3: create compute command pool
+	{
+		VkCommandPoolCreateInfo cmd_pool_info = {};
+		cmd_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+		cmd_pool_info.queueFamilyIndex = compute_queue_family_index;
+		cmd_pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+		vulkan_util::checkResult(vkCreateCommandPool(device, &cmd_pool_info, nullptr, &compute_command_pool));
+
+		//// Create a command buffer for compute operations from the command pool.
+		//VkCommandBufferAllocateInfo cmdBufAllocateInfo =
+		//	vkTools::initializers::commandBufferAllocateInfo(
+		//		compute.commandPool,
+		//		VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+		//		1);
+
+	}
+}
+
+// just for sizing information
+struct _Dummy_VisibleLightsForTile
+{
+	int count;
+	std::array<int, MAX_POINT_LIGHT_PER_TILE> lightindices;
+};
+
+void _VulkanContext_Impl::createLightVisibilityBuffer()
+{
+	assert(sizeof(_Dummy_VisibleLightsForTile) == sizeof(int) * (MAX_POINT_LIGHT_PER_TILE + 1));
+
+	tile_count_per_row = (swap_chain_extent.width - 1) / TILE_SIZE + 1;
+	tile_count_per_col = (swap_chain_extent.height - 1) / TILE_SIZE + 1;
+
+	light_visibility_buffer_size = sizeof(_Dummy_VisibleLightsForTile) * tile_count_per_row * tile_count_per_col;
+
+	createBuffer(light_visibility_buffer_size
+		, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+		, &light_visibility_buffer
+		, &light_visibility_buffer_memory);
+
+}
+
+void _VulkanContext_Impl::createLightCullingCommandBuffer()
+{
+	
+	if (light_culling_command_buffer != VK_NULL_HANDLE)
+	{
+		vkFreeCommandBuffers(graphics_device, compute_command_pool, 1, &light_culling_command_buffer);
+		light_culling_command_buffer = VK_NULL_HANDLE;
 	}
 
+	// Create light culling command buffer
 	{
-		// uniform buffer for point lights
-		VkDescriptorSetLayoutBinding lb = {};
-		lb.binding = 1;
-		lb.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		lb.descriptorCount = 1;  // maybe we can use this for different types of lights
-		lb.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-		lb.pImmutableSamplers = nullptr; // Optional
-		set_layout_bindings.push_back(lb);
+		VkCommandBufferAllocateInfo alloc_info = {};
+		alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		alloc_info.commandPool = compute_command_pool;
+		alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+		alloc_info.commandBufferCount = 1;
+		vulkan_util::checkResult(vkAllocateCommandBuffers(graphics_device, &alloc_info, &light_culling_command_buffer));
 	}
 
-	VkDescriptorSetLayoutCreateInfo layout_info = {};
-	layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layout_info.bindingCount = static_cast<uint32_t>(set_layout_bindings.size());
-	layout_info.pBindings = set_layout_bindings.data();
-
-	auto result = vkCreateDescriptorSetLayout(graphics_device, &layout_info, nullptr, &compute_descriptor_set_layout);
-
-	if (result != VK_SUCCESS)
+	// Record command buffer
 	{
-		throw std::runtime_error("Unable to create descriptor layout for command queue!");
+		vk::CommandBufferBeginInfo begin_info =
+		{
+			vk::CommandBufferUsageFlagBits::eSimultaneousUse,
+			nullptr
+		};
+
+		vk::CommandBuffer command(light_culling_command_buffer);
+
+		command.begin(begin_info);
+
+		// begin after fragment shader finished reading from storage buffer
+		vk::BufferMemoryBarrier buffer_barrier_before =
+		{
+			vk::AccessFlagBits::eShaderRead, //source access mask
+			vk::AccessFlagBits::eShaderWrite, // dist access mask
+			static_cast<uint32_t>(queue_family_indices.graphics_family),
+			static_cast<uint32_t>(queue_family_indices.compute_family),
+			static_cast<VkBuffer>(light_visibility_buffer),
+			0,
+			light_visibility_buffer_size
+		};
+		command.pipelineBarrier(
+			vk::PipelineStageFlagBits::eFragmentShader,
+			vk::PipelineStageFlagBits::eComputeShader,
+			vk::DependencyFlags(),
+			0, nullptr,
+			1, &buffer_barrier_before, // TODO
+			0, nullptr
+		);
+
+		// barrier
+		command.bindPipeline(vk::PipelineBindPoint::eCompute, static_cast<VkPipeline>(compute_pipeline));
+		command.dispatch(tile_count_per_row, tile_count_per_col, 1);
+
+		vk::BufferMemoryBarrier buffer_barrier_after =
+		{
+			vk::AccessFlagBits::eShaderWrite, // dist access mask
+			vk::AccessFlagBits::eShaderRead, //source access mask
+			static_cast<uint32_t>(queue_family_indices.compute_family),
+			static_cast<uint32_t>(queue_family_indices.graphics_family),
+			static_cast<VkBuffer>(light_visibility_buffer),
+			0,
+			light_visibility_buffer_size
+		};
+
+		command.pipelineBarrier(
+			vk::PipelineStageFlagBits::eComputeShader,
+			vk::PipelineStageFlagBits::eFragmentShader,
+			vk::DependencyFlags(),
+			0, nullptr,
+			1, &buffer_barrier_after, // TODO
+			0, nullptr
+		);
+
+		command.end();
 	}
-	//TODO
 }
 
 void _VulkanContext_Impl::updateUniformBuffer(float deltatime)

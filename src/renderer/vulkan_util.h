@@ -13,5 +13,7 @@ namespace vulkan_util
 
 	std::array<VkVertexInputAttributeDescription, 4> getVertexAttributeDescriptions();
 
+	void checkResult(VkResult result, const char * what = "Runtime error from vulkan_util::checkResult!");
+
 }
 
