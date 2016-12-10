@@ -1733,7 +1733,6 @@ struct _Dummy_VisibleLightsForTile
 	std::array<int, MAX_POINT_LIGHT_PER_TILE> lightindices;
 };
 
-
 /**
 * Create or recreate light visibility buffer and its descriptor
 */

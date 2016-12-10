@@ -16,6 +16,16 @@ Members:
 * Point Light
 
 ## Milestones
+
+### Milestone 3 (12/12/2016)
+* (TODO:) Forward+ pipeline:
+  * Compute pipeline
+  * Shared descriptor sets for lights and camera to use compute pipeline output as fragment shader input.
+    * Also used some push constants for the change of tile numbers after resizing window 
+  * TODO: light culling
+  
+![](/screenshots/push_constant_tile_nums.gif)
+
 ### Milestone 2 (11/28/2016)
 * Forward+ framework in progress:
   * Camera control
