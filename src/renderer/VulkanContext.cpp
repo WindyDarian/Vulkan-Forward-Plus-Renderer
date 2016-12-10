@@ -1817,21 +1817,24 @@ void _VulkanContext_Impl::createLightCullingCommandBuffer()
 		// begin after fragment shader finished reading from storage buffer
 		vk::BufferMemoryBarrier buffer_barrier_before =
 		{
-			vk::AccessFlagBits::eShaderRead, //source access mask
-			vk::AccessFlagBits::eShaderWrite, // dist access mask
-			static_cast<uint32_t>(queue_family_indices.graphics_family),
-			static_cast<uint32_t>(queue_family_indices.compute_family),
-			static_cast<VkBuffer>(light_visibility_buffer),
-			0,
-			light_visibility_buffer_size
+			vk::AccessFlagBits::eShaderRead,  // srcAccessMask
+			vk::AccessFlagBits::eShaderWrite,  // dstAccessMask
+			static_cast<uint32_t>(queue_family_indices.graphics_family),  // srcQueueFamilyIndex
+			static_cast<uint32_t>(queue_family_indices.compute_family),  // dstQueueFamilyIndex
+			static_cast<VkBuffer>(light_visibility_buffer),  // buffer
+			0,  // offset
+			light_visibility_buffer_size  // size
 		};
 		command.pipelineBarrier(
-			vk::PipelineStageFlagBits::eFragmentShader,
-			vk::PipelineStageFlagBits::eComputeShader,
-			vk::DependencyFlags(),
-			0, nullptr,
-			1, &buffer_barrier_before, // TODO
-			0, nullptr
+			vk::PipelineStageFlagBits::eFragmentShader,  // srcStageMask
+			vk::PipelineStageFlagBits::eComputeShader,  // dstStageMask
+			vk::DependencyFlags(),  // dependencyFlags
+			0,  // memoryBarrierCount 
+			nullptr,  // pBUfferMemoryBarriers
+			1,  // bufferMemoryBarrierCount
+			&buffer_barrier_before,  // pBUfferMemoryBarriers
+			0,  // imageMemoryBarrierCount
+			nullptr // pImageMemoryBarriers
 		);
 
 		// barrier
