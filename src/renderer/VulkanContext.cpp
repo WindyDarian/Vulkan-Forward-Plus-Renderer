@@ -151,7 +151,7 @@ private:
 	VDeleter<VkPipelineLayout> pipeline_layout{ graphics_device, vkDestroyPipelineLayout };
 	VDeleter<VkPipeline> graphics_pipeline{ graphics_device, vkDestroyPipeline };
 
-	VDeleter<VkDescriptorSetLayout> compute_descriptor_set_layout{ graphics_device, vkDestroyDescriptorSetLayout };
+	VDeleter<VkDescriptorSetLayout> light_culling_descriptor_set_layout{ graphics_device, vkDestroyDescriptorSetLayout };
 	VDeleter<VkPipelineLayout> compute_pipeline_layout{ graphics_device, vkDestroyPipelineLayout };
 	VDeleter<VkPipeline> compute_pipeline{ graphics_device, vkDestroyPipeline };
 	VDeleter<VkCommandPool> compute_command_pool{ graphics_device, vkDestroyCommandPool };
@@ -188,8 +188,7 @@ private:
 
 	VDeleter<VkDescriptorPool> descriptor_pool{ graphics_device, vkDestroyDescriptorPool };
 	VkDescriptorSet descriptor_set;
-	VkDescriptorSet compute_lightculling_descriptor_set;
-	VkDescriptorSet graphics_lightculling_descriptor_set;
+	VkDescriptorSet light_culling_descriptor_set;
 
 	// vertex buffer
 	VDeleter<VkBuffer> vertex_buffer{ this->graphics_device, vkDestroyBuffer };
@@ -250,6 +249,7 @@ private:
 		createSwapChainImageViews();
 		createRenderPass();
 		createDescriptorSetLayout();
+		createLightCullingDescriptorSetLayout();
 		createGraphicsPipeline();
 		createComputePipeline();
 		createCommandPool();
@@ -265,9 +265,9 @@ private:
 		createLights();
 		createDescriptorPool();
 		createDescriptorSet();
-		createCommandBuffers();
-		createLigutCullingDescriptorSet(); 
+		createLigutCullingDescriptorSet();
 		createLightVisibilityBuffer(); // create a light visiblity buffer and update descriptor sets, need to rerun after changing size
+		createCommandBuffers();
 		createLightCullingCommandBuffer();
 		createSemaphores();
 	}
@@ -282,9 +282,9 @@ private:
 		createGraphicsPipeline();
 		createDepthResources();
 		createFrameBuffers();
-		createCommandBuffers();
 		createLightVisibilityBuffer(); // since it's size will scale with window;
-		createLightCullingCommandBuffer();
+		createCommandBuffers();
+		createLightCullingCommandBuffer(); // it needs light_visibility_buffer_size, which is changed on resize
 	}
 
 	void createInstance();
@@ -312,6 +312,7 @@ private:
 	void createCommandBuffers();
 	void createSemaphores();
 
+	void createLightCullingDescriptorSetLayout();
 	void createComputePipeline();
 	void createLigutCullingDescriptorSet();
 	void createLightVisibilityBuffer();
@@ -968,6 +969,7 @@ void _VulkanContext_Impl::createDescriptorSetLayout()
 
 }
 
+
 void _VulkanContext_Impl::createGraphicsPipeline()
 {
 	auto vert_shader_code = util::readFile(util::getContentPath("helloworld_vert.spv"));
@@ -1097,8 +1099,8 @@ void _VulkanContext_Impl::createGraphicsPipeline()
 	// no uniform variables or push constants
 	VkPipelineLayoutCreateInfo pipeline_layout_info = {};
 	pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	VkDescriptorSetLayout set_layouts[] = { descriptor_set_layout };
-	pipeline_layout_info.setLayoutCount = 1; // Optional
+	VkDescriptorSetLayout set_layouts[] = { descriptor_set_layout, light_culling_descriptor_set_layout };
+	pipeline_layout_info.setLayoutCount = 2; // Optional
 	pipeline_layout_info.pSetLayouts = set_layouts; // Optional
 	pipeline_layout_info.pushConstantRangeCount = 0; // Optional
 	pipeline_layout_info.pPushConstantRanges = 0; // Optional
@@ -1548,8 +1550,10 @@ void _VulkanContext_Impl::createCommandBuffers()
 		vkCmdBindVertexBuffers(command_buffers[i], 0, 1, vertex_buffers, offsets);
 		//vkCmdBindIndexBuffer(command_buffers[i], index_buffer, 0, VK_INDEX_TYPE_UINT16);
 		vkCmdBindIndexBuffer(command_buffers[i], index_buffer, 0, VK_INDEX_TYPE_UINT32);
+
+		std::array<VkDescriptorSet, 2> descriptor_sets = {descriptor_set, light_culling_descriptor_set};
 		vkCmdBindDescriptorSets(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS
-			, pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
+			, pipeline_layout, 0, descriptor_sets.size(), descriptor_sets.data(), 0, nullptr);
 		// TODO: better to store vertex buffer and index buffer in a single VkBuffer
 
 		//vkCmdDraw(command_buffers[i], VERTICES.size(), 1, 0, 0);
@@ -1588,51 +1592,11 @@ void _VulkanContext_Impl::createComputePipeline()
 	// TODO: I think I should have it as a member
 	auto compute_queue_family_index = QueueFamilyIndices::findQueueFamilies(physical_device, window_surface).compute_family;
 
-	// Step1: Create Descriptor Set Layout
-	{
-
-		std::vector<VkDescriptorSetLayoutBinding> set_layout_bindings = {};
-
-		{
-			// create descriptor for storage buffer for light culling results
-			VkDescriptorSetLayoutBinding lb = {};
-			lb.binding = 0;
-			lb.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-			lb.descriptorCount = 1;
-			lb.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-			lb.pImmutableSamplers = nullptr; 
-			set_layout_bindings.push_back(lb);
-		}
-
-		{
-			// uniform buffer for point lights
-			VkDescriptorSetLayoutBinding lb = {};
-			lb.binding = 1;
-			lb.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-			lb.descriptorCount = 1;  // maybe we can use this for different types of lights
-			lb.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-			lb.pImmutableSamplers = nullptr; 
-			set_layout_bindings.push_back(lb);
-		}
-
-		VkDescriptorSetLayoutCreateInfo layout_info = {};
-		layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-		layout_info.bindingCount = static_cast<uint32_t>(set_layout_bindings.size());
-		layout_info.pBindings = set_layout_bindings.data();
-
-		auto result = vkCreateDescriptorSetLayout(graphics_device, &layout_info, nullptr, &compute_descriptor_set_layout);
-
-		if (result != VK_SUCCESS)
-		{
-			throw std::runtime_error("Unable to create descriptor layout for command queue!");
-		}
-	};
-
-	// Step2: Create Pipeline
+	// Step 1: Create Pipeline
 	{
 		VkPipelineLayoutCreateInfo pipeline_layout_info = {};
 		pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		std::array<VkDescriptorSetLayout, 1> set_layouts = { compute_descriptor_set_layout };
+		std::array<VkDescriptorSetLayout, 1> set_layouts = { light_culling_descriptor_set_layout };
 		pipeline_layout_info.setLayoutCount = static_cast<int>(set_layouts.size()); 
 		pipeline_layout_info.pSetLayouts = set_layouts.data(); 
 		pipeline_layout_info.pushConstantRangeCount = 0; 
@@ -1661,22 +1625,58 @@ void _VulkanContext_Impl::createComputePipeline()
 		vulkan_util::checkResult(vkCreateComputePipelines(graphics_device, VK_NULL_HANDLE, 1, &pipeline_create_info, nullptr, &compute_pipeline));
 	};
 
-	// Step 3: create compute command pool
+	// Step 2: create compute command pool
 	{
 		VkCommandPoolCreateInfo cmd_pool_info = {};
 		cmd_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 		cmd_pool_info.queueFamilyIndex = compute_queue_family_index;
 		cmd_pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 		vulkan_util::checkResult(vkCreateCommandPool(device, &cmd_pool_info, nullptr, &compute_command_pool));
-
-		//// Create a command buffer for compute operations from the command pool.
-		//VkCommandBufferAllocateInfo cmdBufAllocateInfo =
-		//	vkTools::initializers::commandBufferAllocateInfo(
-		//		compute.commandPool,
-		//		VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-		//		1);
-
 	}
+}
+
+
+void _VulkanContext_Impl::createLightCullingDescriptorSetLayout()
+{
+	// Step1: Create Descriptor Set Layout
+	{
+
+		std::vector<VkDescriptorSetLayoutBinding> set_layout_bindings = {};
+
+		{
+			// create descriptor for storage buffer for light culling results
+			VkDescriptorSetLayoutBinding lb = {};
+			lb.binding = 0;
+			lb.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			lb.descriptorCount = 1;
+			lb.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+			lb.pImmutableSamplers = nullptr;
+			set_layout_bindings.push_back(lb);
+		}
+
+		{
+			// uniform buffer for point lights
+			VkDescriptorSetLayoutBinding lb = {};
+			lb.binding = 1;
+			lb.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			lb.descriptorCount = 1;  // maybe we can use this for different types of lights
+			lb.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+			lb.pImmutableSamplers = nullptr;
+			set_layout_bindings.push_back(lb);
+		}
+
+		VkDescriptorSetLayoutCreateInfo layout_info = {};
+		layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+		layout_info.bindingCount = static_cast<uint32_t>(set_layout_bindings.size());
+		layout_info.pBindings = set_layout_bindings.data();
+
+		auto result = vkCreateDescriptorSetLayout(graphics_device, &layout_info, nullptr, &light_culling_descriptor_set_layout);
+
+		if (result != VK_SUCCESS)
+		{
+			throw std::runtime_error("Unable to create descriptor layout for command queue!");
+		}
+	};
 }
 
 /**
@@ -1687,28 +1687,15 @@ void _VulkanContext_Impl::createLigutCullingDescriptorSet()
 	// create dercriptor set in command pipeline
 	{	
 		// todo: reduce code duplication with createDescriptorSet() 
-		VkDescriptorSetLayout layouts[] = { compute_descriptor_set_layout };
+		VkDescriptorSetLayout layouts[] = { light_culling_descriptor_set_layout };
 		VkDescriptorSetAllocateInfo alloc_info = {};
 		alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 		alloc_info.descriptorPool = descriptor_pool;
 		alloc_info.descriptorSetCount = 1;
 		alloc_info.pSetLayouts = layouts;
 
-		compute_lightculling_descriptor_set = device.allocateDescriptorSets(alloc_info)[0];
+		light_culling_descriptor_set = device.allocateDescriptorSets(alloc_info)[0];
 	}
-
-	// create dercriptor set in graphics pipeline... now I am just using the descriptor set from createDescriptorSet
-	//{
-	//	// todo: reduce code duplication with createDescriptorSet() 
-	//	VkDescriptorSetLayout layouts[] = { compute_descriptor_set_layout };
-	//	VkDescriptorSetAllocateInfo alloc_info = {};
-	//	alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	//	alloc_info.descriptorPool = descriptor_pool;
-	//	alloc_info.descriptorSetCount = 1;
-	//	alloc_info.pSetLayouts = layouts;
-
-	//	compute_lightculling_descriptor_set = device.allocateDescriptorSets(alloc_info)[0];
-	//}
 }
 
 // just for sizing information
@@ -1718,6 +1705,10 @@ struct _Dummy_VisibleLightsForTile
 	std::array<int, MAX_POINT_LIGHT_PER_TILE> lightindices;
 };
 
+
+/**
+* Create or recreate light visibility buffer and its descriptor
+*/
 void _VulkanContext_Impl::createLightVisibilityBuffer()
 {
 	assert(sizeof(_Dummy_VisibleLightsForTile) == sizeof(int) * (MAX_POINT_LIGHT_PER_TILE + 1));
@@ -1756,7 +1747,7 @@ void _VulkanContext_Impl::createLightVisibilityBuffer()
 		std::vector<vk::WriteDescriptorSet> descriptor_writes = {};
 		
 		descriptor_writes.emplace_back(
-			compute_lightculling_descriptor_set, // dstSet
+			light_culling_descriptor_set, // dstSet
 			0, // dstBinding
 			0, // distArrayElement
 			1, // descriptorCount
@@ -1767,7 +1758,7 @@ void _VulkanContext_Impl::createLightVisibilityBuffer()
 		);
 
 		descriptor_writes.emplace_back(
-			compute_lightculling_descriptor_set, // dstSet
+			light_culling_descriptor_set, // dstSet
 			1, // dstBinding
 			0, // distArrayElement
 			1, // descriptorCount
@@ -1842,7 +1833,7 @@ void _VulkanContext_Impl::createLightCullingCommandBuffer()
 			vk::PipelineBindPoint::eCompute, // pipelineBindPoint
 			compute_pipeline_layout.get(), // layout
 			0, // firstSet
-			std::array<vk::DescriptorSet, 1>{compute_lightculling_descriptor_set}, // descriptorSets
+			std::array<vk::DescriptorSet, 1>{light_culling_descriptor_set}, // descriptorSets
 			std::array<uint32_t, 0>() // pDynamicOffsets
 		); 
 		command.bindPipeline(vk::PipelineBindPoint::eCompute, static_cast<VkPipeline>(compute_pipeline));
