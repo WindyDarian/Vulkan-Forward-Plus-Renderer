@@ -945,15 +945,17 @@ void _VulkanContext_Impl::createDescriptorSetLayout()
 		normalmap_layout_binding.pImmutableSamplers = nullptr;
 		normalmap_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-		VkDescriptorSetLayoutBinding lights_layout_binding = {};
-		lights_layout_binding.binding = 3;
-		lights_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		lights_layout_binding.descriptorCount = 1;
-		lights_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT; // only referencing from vertex shader
-																	// VK_SHADER_STAGE_ALL_GRAPHICS
-		lights_layout_binding.pImmutableSamplers = nullptr; // Optional
+		// MOVED to light_culling_descriptor_set_layout
+		//VkDescriptorSetLayoutBinding lights_layout_binding = {};
+		//lights_layout_binding.binding = 3;
+		//lights_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		//lights_layout_binding.descriptorCount = 1;
+		//lights_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT; // only referencing from vertex shader
+		//															// VK_SHADER_STAGE_ALL_GRAPHICS
+		//lights_layout_binding.pImmutableSamplers = nullptr; // Optional
+		//std::array<VkDescriptorSetLayoutBinding, 4> bindings = { ubo_layout_binding, sampler_layout_binding, normalmap_layout_binding, lights_layout_binding };
 
-		std::array<VkDescriptorSetLayoutBinding, 4> bindings = { ubo_layout_binding, sampler_layout_binding, normalmap_layout_binding, lights_layout_binding };
+		std::array<VkDescriptorSetLayoutBinding, 3> bindings = { ubo_layout_binding, sampler_layout_binding, normalmap_layout_binding };
 		// std::array<VkDescriptorSetLayoutBinding, 2> bindings = { ubo_layout_binding, sampler_layout_binding};
 		VkDescriptorSetLayoutCreateInfo layout_info = {};
 		layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -1445,8 +1447,8 @@ void _VulkanContext_Impl::createDescriptorSet()
 	lights_buffer_info.offset = 0;
 	lights_buffer_info.range = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(int);
 
-	std::array<VkWriteDescriptorSet, 4> descriptor_writes = {};
-	//std::array<VkWriteDescriptorSet, 2> descriptor_writes = {};
+	//std::array<VkWriteDescriptorSet, 4> descriptor_writes = {};
+	std::array<VkWriteDescriptorSet, 3> descriptor_writes = {};
 
 	// ubo
 	descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1477,16 +1479,17 @@ void _VulkanContext_Impl::createDescriptorSet()
 	descriptor_writes[2].descriptorCount = 1;
 	descriptor_writes[2].pImageInfo = &normalmap_info;
 
-	// lights
-	descriptor_writes[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptor_writes[3].dstSet = descriptor_set;
-	descriptor_writes[3].dstBinding = 3;
-	descriptor_writes[3].dstArrayElement = 0;
-	descriptor_writes[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	descriptor_writes[3].descriptorCount = 1;
-	descriptor_writes[3].pBufferInfo = &lights_buffer_info;
-	descriptor_writes[3].pImageInfo = nullptr; // Optional
-	descriptor_writes[3].pTexelBufferView = nullptr; // Optional
+	// MOVED TO light_culling_descriptor_sets
+	//// lights
+	//descriptor_writes[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	//descriptor_writes[3].dstSet = descriptor_set;
+	//descriptor_writes[3].dstBinding = 3;
+	//descriptor_writes[3].dstArrayElement = 0;
+	//descriptor_writes[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	//descriptor_writes[3].descriptorCount = 1;
+	//descriptor_writes[3].pBufferInfo = &lights_buffer_info;
+	//descriptor_writes[3].pImageInfo = nullptr; // Optional
+	//descriptor_writes[3].pTexelBufferView = nullptr; // Optional
 
 
 	vkUpdateDescriptorSets(graphics_device, (uint32_t)descriptor_writes.size()

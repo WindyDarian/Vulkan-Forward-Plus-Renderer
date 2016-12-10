@@ -17,7 +17,7 @@ layout(std140, set = 0, binding = 0) uniform UniformBufferObject
 
 layout(set = 0, binding = 1) uniform sampler2D tex_sampler;
 layout(set = 0, binding = 2) uniform sampler2D normal_sampler;
-layout(std140, set = 0, binding = 3) uniform PointLights // readonly buffer PointLights
+layout(std140, set = 1, binding = 1) uniform PointLights // readonly buffer PointLights
 {
 	int light_num;
 	PointLight pointlights[1000];
