@@ -45,6 +45,17 @@ struct UniformBufferObject
 	glm::vec3 cam_pos;
 };
 
+struct PushConstantObject
+{
+	glm::ivec2 viewport_size;
+	glm::ivec2 tile_nums;
+
+	PushConstantObject(int viewport_size_x, int viewport_size_y, int tile_num_x, int tile_num_y)
+		: viewport_size(viewport_size_x, viewport_size_y),
+		tile_nums(tile_num_x, tile_num_y)
+	{}
+};
+
 struct QueueFamilyIndices
 {
 	int graphics_family = -1;
@@ -1098,14 +1109,19 @@ void _VulkanContext_Impl::createGraphicsPipeline()
 	dynamic_state_info.dynamicStateCount = 2;
 	dynamic_state_info.pDynamicStates = dynamicStates;
 
+	VkPushConstantRange push_constant_range = {};
+	push_constant_range.offset = 0;
+	push_constant_range.size = sizeof(PushConstantObject);
+	push_constant_range.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
 	// no uniform variables or push constants
 	VkPipelineLayoutCreateInfo pipeline_layout_info = {};
 	pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	VkDescriptorSetLayout set_layouts[] = { descriptor_set_layout, light_culling_descriptor_set_layout };
 	pipeline_layout_info.setLayoutCount = 2; // Optional
 	pipeline_layout_info.pSetLayouts = set_layouts; // Optional
-	pipeline_layout_info.pushConstantRangeCount = 0; // Optional
-	pipeline_layout_info.pPushConstantRanges = 0; // Optional
+	pipeline_layout_info.pushConstantRangeCount = 1; // Optional
+	pipeline_layout_info.pPushConstantRanges = &push_constant_range; // Optional
 
 
 	auto pipeline_layout_result = vkCreatePipelineLayout(graphics_device, &pipeline_layout_info, nullptr,
@@ -1545,6 +1561,9 @@ void _VulkanContext_Impl::createCommandBuffers()
 
 		vkCmdBeginRenderPass(command_buffers[i], &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
+		PushConstantObject pco = { static_cast<int>(swap_chain_extent.width), static_cast<int>(swap_chain_extent.height), tile_count_per_row, tile_count_per_col };
+		vkCmdPushConstants(command_buffers[i], pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pco), &pco);
+
 		vkCmdBindPipeline(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
 
 		// bind vertex buffer
@@ -1558,6 +1577,7 @@ void _VulkanContext_Impl::createCommandBuffers()
 		vkCmdBindDescriptorSets(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS
 			, pipeline_layout, 0, descriptor_sets.size(), descriptor_sets.data(), 0, nullptr);
 		// TODO: better to store vertex buffer and index buffer in a single VkBuffer
+		
 
 		//vkCmdDraw(command_buffers[i], VERTICES.size(), 1, 0, 0);
 		vkCmdDrawIndexed(command_buffers[i], (uint32_t)vertex_indices.size(), 1, 0, 0, 0);
@@ -1597,13 +1617,18 @@ void _VulkanContext_Impl::createComputePipeline()
 
 	// Step 1: Create Pipeline
 	{
+		VkPushConstantRange push_constant_range = {};
+		push_constant_range.offset = 0;
+		push_constant_range.size = sizeof(PushConstantObject);
+		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
 		VkPipelineLayoutCreateInfo pipeline_layout_info = {};
 		pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 		std::array<VkDescriptorSetLayout, 1> set_layouts = { light_culling_descriptor_set_layout };
 		pipeline_layout_info.setLayoutCount = static_cast<int>(set_layouts.size()); 
 		pipeline_layout_info.pSetLayouts = set_layouts.data(); 
-		pipeline_layout_info.pushConstantRangeCount = 0; 
-		pipeline_layout_info.pPushConstantRanges = 0; 
+		pipeline_layout_info.pushConstantRangeCount = 1; 
+		pipeline_layout_info.pPushConstantRanges = &push_constant_range; 
 
 		vulkan_util::checkResult(vkCreatePipelineLayout(graphics_device, &pipeline_layout_info, nullptr, &compute_pipeline_layout));
 
@@ -1839,6 +1864,10 @@ void _VulkanContext_Impl::createLightCullingCommandBuffer()
 			std::array<vk::DescriptorSet, 1>{light_culling_descriptor_set}, // descriptorSets
 			std::array<uint32_t, 0>() // pDynamicOffsets
 		); 
+
+		PushConstantObject pco = { static_cast<int>(swap_chain_extent.width), static_cast<int>(swap_chain_extent.height), tile_count_per_row, tile_count_per_col };
+		command.pushConstants(compute_pipeline_layout.get(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(pco), &pco);
+
 		command.bindPipeline(vk::PipelineBindPoint::eCompute, static_cast<VkPipeline>(compute_pipeline));
 		command.dispatch(tile_count_per_row, tile_count_per_col, 1);
 

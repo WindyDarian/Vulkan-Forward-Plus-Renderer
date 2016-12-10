@@ -14,6 +14,12 @@ struct LightVisiblity
 	int lightindices[MAX_POINT_LIGHT_PER_TILE];
 };
 
+layout(push_constant) uniform PushConstantObject 
+{
+	ivec2 viewport_size;
+	ivec2 tile_nums;
+} push_constants;
+
 layout(std140, set = 0, binding = 0) uniform UniformBufferObject
 {
     mat4 model;
@@ -87,10 +93,10 @@ void main()
 	}
 
     ivec2 tile_id = ivec2(gl_FragCoord.xy / TILE_SIZE);
-    uint tile_index = tile_id.y * 120 + tile_id.x;  // hardcoded, don't resize and break anything
+    uint tile_index = tile_id.y * push_constants.tile_nums.x + tile_id.x; 
     //out_color = vec4(vec3(float(light_visiblities[tile_index].count) / 8100.0), 1.0) ;
     out_color = vec4(0.0, 0.0, 0.0, 1.0);
-    out_color[light_visiblities[tile_index].count % 3] = 1.0;
+    out_color[light_visiblities[tile_index].count] = 1.0;
     //out_color = vec4(illuminance, 1.0); 
     //out_color = vec4(abs(normal), 1.0);
     //out_color = vec4(abs(texture(normal_sampler, frag_tex_coord).rgb), 1.0); // normal map debug view

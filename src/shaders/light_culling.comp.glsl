@@ -16,6 +16,12 @@ struct LightVisiblity
 	int lightindices[MAX_POINT_LIGHT_PER_TILE];
 };
 
+layout(push_constant) uniform PushConstantObject 
+{
+	ivec2 viewport_size;
+	ivec2 tile_nums;
+} push_constants;
+
 layout(std430, set = 0, binding = 0) buffer writeonly TileLightVisiblities
 {
     LightVisiblity light_visiblities[];
@@ -31,7 +37,7 @@ void main()
 {
     // wild work in progress!
 	ivec2 tile_id = ivec2(gl_WorkGroupID.xy);
-	ivec2 tile_nums = ivec2(gl_NumWorkGroups.xy);
-	uint tile_index = tile_id.y * tile_nums.x + tile_id.x;
-	light_visiblities[tile_index].count = int(float(tile_index)) % 7;
+	//ivec2 tile_nums = ivec2(gl_NumWorkGroups.xy);
+	uint tile_index = tile_id.y * push_constants.tile_nums.x + tile_id.x;
+	light_visiblities[tile_index].count = int(float(tile_index)) % 3;
 }
