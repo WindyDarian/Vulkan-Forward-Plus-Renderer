@@ -137,7 +137,7 @@ private:
 	VDeleter<VkSurfaceKHR> window_surface{ instance, vkDestroySurfaceKHR };
 	VkQueue present_queue;
 
-	VkQueue compute_queue;
+	vk::Queue compute_queue;
 
 	VDeleter<VkSwapchainKHR> swap_chain{ graphics_device, vkDestroySwapchainKHR };
 	std::vector<VkImage> swap_chain_images;
@@ -199,6 +199,7 @@ private:
 
 	VDeleter<VkBuffer> pointlight_buffer{ this->graphics_device, vkDestroyBuffer };
 	VDeleter<VkDeviceMemory> pointlight_buffer_memory{ graphics_device, vkFreeMemory };
+	VkDeviceSize pointlight_buffer_size;
 
 	std::vector<util::Vertex> vertices;
 	std::vector<uint32_t> vertex_indices;
@@ -395,8 +396,6 @@ struct SwapChainSupportDetails
 		return details;
 	}
 };
-
-
 
 _VulkanContext_Impl::_VulkanContext_Impl(GLFWwindow* window)
 {
@@ -722,7 +721,7 @@ void _VulkanContext_Impl::createLogicalDevice()
 	QueueFamilyIndices indices = QueueFamilyIndices::findQueueFamilies(physical_device, static_cast<VkSurfaceKHR>(window_surface));
 
 	std::vector <VkDeviceQueueCreateInfo> queue_create_infos;
-	std::set<int> queue_families = { indices.graphics_family, indices.present_family };
+	std::set<int> queue_families = { indices.graphics_family, indices.present_family, indices.compute_family};
 
 	float queue_priority = 1.0f;
 	for (int family : queue_families)
@@ -771,6 +770,7 @@ void _VulkanContext_Impl::createLogicalDevice()
 
 	vkGetDeviceQueue(graphics_device, indices.graphics_family, 0, &graphics_queue);
 	vkGetDeviceQueue(graphics_device, indices.present_family, 0, &present_queue);
+	compute_queue =	device.getQueue(indices.compute_family, 0);
 }
 
 void _VulkanContext_Impl::createSwapChain()
@@ -916,50 +916,54 @@ void _VulkanContext_Impl::createRenderPass()
 
 void _VulkanContext_Impl::createDescriptorSetLayout()
 {
-	// create descriptor for uniform buffer objects
-	VkDescriptorSetLayoutBinding ubo_layout_binding = {};
-	ubo_layout_binding.binding = 0;
-	ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	ubo_layout_binding.descriptorCount = 1;
-	ubo_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT; // only referencing from vertex shader
-	// VK_SHADER_STAGE_ALL_GRAPHICS
-	ubo_layout_binding.pImmutableSamplers = nullptr; // Optional
-
-	// descriptor for texture sampler
-	VkDescriptorSetLayoutBinding sampler_layout_binding = {};
-	sampler_layout_binding.binding = 1;
-	sampler_layout_binding.descriptorCount = 1;
-	sampler_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	sampler_layout_binding.pImmutableSamplers = nullptr;
-	sampler_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	// descriptor for normal map sampler
-	VkDescriptorSetLayoutBinding normalmap_layout_binding = {};
-	normalmap_layout_binding.binding = 2;
-	normalmap_layout_binding.descriptorCount = 1;
-	normalmap_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	normalmap_layout_binding.pImmutableSamplers = nullptr;
-	normalmap_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	VkDescriptorSetLayoutBinding lights_layout_binding = {};
-	lights_layout_binding.binding = 3;
-	lights_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	lights_layout_binding.descriptorCount = 1;
-	lights_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT; // only referencing from vertex shader
-																// VK_SHADER_STAGE_ALL_GRAPHICS
-	lights_layout_binding.pImmutableSamplers = nullptr; // Optional
-
-	std::array<VkDescriptorSetLayoutBinding, 4> bindings = { ubo_layout_binding, sampler_layout_binding, normalmap_layout_binding, lights_layout_binding };
-	// std::array<VkDescriptorSetLayoutBinding, 2> bindings = { ubo_layout_binding, sampler_layout_binding};
-	VkDescriptorSetLayoutCreateInfo layout_info = {};
-	layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layout_info.bindingCount = (uint32_t)bindings.size();
-	layout_info.pBindings = bindings.data();
-
-
-	if (vkCreateDescriptorSetLayout(graphics_device, &layout_info, nullptr, &descriptor_set_layout) != VK_SUCCESS)
+	// TODO: separate camera and light to another layout
+	// UBO
 	{
-		throw std::runtime_error("Failed to create descriptor set layout!");
+		// create descriptor for uniform buffer objects
+		VkDescriptorSetLayoutBinding ubo_layout_binding = {};
+		ubo_layout_binding.binding = 0;
+		ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		ubo_layout_binding.descriptorCount = 1;
+		ubo_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT; // only referencing from vertex shader
+		// VK_SHADER_STAGE_ALL_GRAPHICS
+		ubo_layout_binding.pImmutableSamplers = nullptr; // Optional
+
+		// descriptor for texture sampler
+		VkDescriptorSetLayoutBinding sampler_layout_binding = {};
+		sampler_layout_binding.binding = 1;
+		sampler_layout_binding.descriptorCount = 1;
+		sampler_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		sampler_layout_binding.pImmutableSamplers = nullptr;
+		sampler_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+		// descriptor for normal map sampler
+		VkDescriptorSetLayoutBinding normalmap_layout_binding = {};
+		normalmap_layout_binding.binding = 2;
+		normalmap_layout_binding.descriptorCount = 1;
+		normalmap_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		normalmap_layout_binding.pImmutableSamplers = nullptr;
+		normalmap_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+		VkDescriptorSetLayoutBinding lights_layout_binding = {};
+		lights_layout_binding.binding = 3;
+		lights_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		lights_layout_binding.descriptorCount = 1;
+		lights_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT; // only referencing from vertex shader
+																	// VK_SHADER_STAGE_ALL_GRAPHICS
+		lights_layout_binding.pImmutableSamplers = nullptr; // Optional
+
+		std::array<VkDescriptorSetLayoutBinding, 4> bindings = { ubo_layout_binding, sampler_layout_binding, normalmap_layout_binding, lights_layout_binding };
+		// std::array<VkDescriptorSetLayoutBinding, 2> bindings = { ubo_layout_binding, sampler_layout_binding};
+		VkDescriptorSetLayoutCreateInfo layout_info = {};
+		layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+		layout_info.bindingCount = (uint32_t)bindings.size();
+		layout_info.pBindings = bindings.data();
+
+
+		if (vkCreateDescriptorSetLayout(graphics_device, &layout_info, nullptr, &descriptor_set_layout) != VK_SUCCESS)
+		{
+			throw std::runtime_error("Failed to create descriptor set layout!");
+		}
 	}
 
 }
@@ -1337,7 +1341,7 @@ void _VulkanContext_Impl::createLights()
 	//  (given that the lights are moving)
 	auto light_num = static_cast<int>(pointlights.size());
 
-	VkDeviceSize bufferSize = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(int);
+	pointlight_buffer_size = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(int);
 
 	//// create staging buffer
 	//VDeleter<VkBuffer> staging_buffer{ graphics_device, vkDestroyBuffer };
@@ -1354,7 +1358,7 @@ void _VulkanContext_Impl::createLights()
 	//	, &pointlight_buffer
 	//	, &pointlight_buffer_memory);
 
-	createBuffer(bufferSize
+	createBuffer(pointlight_buffer_size
 		, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT   // TODO: uniform or storage? <- We still want to use storage buffer
 		, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
 		, &pointlight_buffer
@@ -1369,7 +1373,7 @@ void _VulkanContext_Impl::createLights()
 	//vkUnmapMemory(graphics_device, staging_buffer_memory);
 	//copyBuffer(staging_buffer, pointlight_buffer, bufferSize);
 
-	vkMapMemory(graphics_device, pointlight_buffer_memory, 0, bufferSize, 0, &data);
+	vkMapMemory(graphics_device, pointlight_buffer_memory, 0, pointlight_buffer_size, 0, &data);
 	memcpy(data, &light_num, sizeof(int));
 	memcpy((char*)data + sizeof(glm::vec4), pointlights.data(), size);
 	vkUnmapMemory(graphics_device, pointlight_buffer_memory);
@@ -1393,9 +1397,10 @@ void _VulkanContext_Impl::createDescriptorPool()
 	pool_info.poolSizeCount = (uint32_t)pool_sizes.size();
 	pool_info.pPoolSizes = pool_sizes.data();
 	pool_info.maxSets = 2; // one for graphics pipeline and one for compute pipeline
-	//TODO: one more in graphics pipeline for light visiblity
+	// TODO: one more in graphics pipeline for light visiblity
 	pool_info.flags = 0;
 	//poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+	// TODO: use VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT so I can create a VKGemoetryClass
 
 	if (vkCreateDescriptorPool(graphics_device, &pool_info, nullptr, &descriptor_pool) != VK_SUCCESS)
 	{
@@ -1585,12 +1590,6 @@ void _VulkanContext_Impl::createComputePipeline()
 
 	// Step1: Create Descriptor Set Layout
 	{
-		VkDeviceQueueCreateInfo queueCreateInfo = {};
-		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-		queueCreateInfo.pNext = NULL;
-		queueCreateInfo.queueFamilyIndex = compute_queue_family_index;
-		queueCreateInfo.queueCount = 1;
-		vkGetDeviceQueue(graphics_device, compute_queue_family_index, 0, &compute_queue);
 
 		std::vector<VkDescriptorSetLayoutBinding> set_layout_bindings = {};
 
@@ -1600,7 +1599,7 @@ void _VulkanContext_Impl::createComputePipeline()
 			lb.binding = 0;
 			lb.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 			lb.descriptorCount = 1;
-			lb.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+			lb.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 			lb.pImmutableSamplers = nullptr; 
 			set_layout_bindings.push_back(lb);
 		}
@@ -1611,7 +1610,7 @@ void _VulkanContext_Impl::createComputePipeline()
 			lb.binding = 1;
 			lb.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 			lb.descriptorCount = 1;  // maybe we can use this for different types of lights
-			lb.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+			lb.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 			lb.pImmutableSamplers = nullptr; 
 			set_layout_bindings.push_back(lb);
 		}
@@ -1734,7 +1733,53 @@ void _VulkanContext_Impl::createLightVisibilityBuffer()
 		, &light_visibility_buffer
 		, &light_visibility_buffer_memory);
 
-	// Create desciptor set in compute shader
+	// Write desciptor set in compute shader
+	{
+		// refer to the uniform object buffer
+		vk::DescriptorBufferInfo light_visibility_buffer_info{
+			static_cast<VkBuffer>(light_visibility_buffer), // buffer_ 
+			0, //offset_
+			light_visibility_buffer_size // range_
+		};
+
+		// refer to the uniform object buffer
+		vk::DescriptorBufferInfo pointlight_buffer_info = { 
+			static_cast<VkBuffer>(pointlight_buffer), // buffer_ 
+			0, //offset_
+			pointlight_buffer_size // range_
+		};
+
+		pointlight_buffer_info.buffer = pointlight_buffer;
+		pointlight_buffer_info.offset = 0;
+		pointlight_buffer_info.range = pointlight_buffer_size;
+
+		std::vector<vk::WriteDescriptorSet> descriptor_writes = {};
+		
+		descriptor_writes.emplace_back(
+			compute_lightculling_descriptor_set, // dstSet
+			0, // dstBinding
+			0, // distArrayElement
+			1, // descriptorCount
+			vk::DescriptorType::eStorageBuffer, //descriptorType
+			nullptr, //pImageInfo
+			&light_visibility_buffer_info, //pBufferInfo
+			nullptr //pTexBufferView
+		);
+
+		descriptor_writes.emplace_back(
+			compute_lightculling_descriptor_set, // dstSet
+			1, // dstBinding
+			0, // distArrayElement
+			1, // descriptorCount
+			vk::DescriptorType::eUniformBuffer, //descriptorType
+			nullptr, //pImageInfo
+			&pointlight_buffer_info, //pBufferInfo
+			nullptr //pTexBufferView
+		);
+
+		std::array<vk::CopyDescriptorSet, 0> descriptor_copies;
+		device.updateDescriptorSets(descriptor_writes, descriptor_copies);
+	}
 
 }
 
@@ -1790,6 +1835,13 @@ void _VulkanContext_Impl::createLightCullingCommandBuffer()
 		);
 
 		// barrier
+		command.bindDescriptorSets(
+			vk::PipelineBindPoint::eCompute, // pipelineBindPoint
+			compute_pipeline_layout.get(), // layout
+			0, // firstSet
+			std::array<vk::DescriptorSet, 1>{compute_lightculling_descriptor_set}, // descriptorSets
+			std::array<uint32_t, 0>() // pDynamicOffsets
+		); 
 		command.bindPipeline(vk::PipelineBindPoint::eCompute, static_cast<VkPipeline>(compute_pipeline));
 		command.dispatch(tile_count_per_row, tile_count_per_col, 1);
 
@@ -1865,59 +1917,81 @@ void _VulkanContext_Impl::drawFrame()
 {
 	// 1. Acquiring an image from the swap chain
 	uint32_t image_index;
-	auto aquiring_result = vkAcquireNextImageKHR(graphics_device, swap_chain
-		, ACQUIRE_NEXT_IMAGE_TIMEOUT, image_available_semaphore, VK_NULL_HANDLE, &image_index);
+	{
+		auto aquiring_result = vkAcquireNextImageKHR(graphics_device, swap_chain
+			, ACQUIRE_NEXT_IMAGE_TIMEOUT, image_available_semaphore, VK_NULL_HANDLE, &image_index);
 
-	if (aquiring_result == VK_ERROR_OUT_OF_DATE_KHR)
-	{
-		// when swap chain needs recreation
-		recreateSwapChain();
-		return;
+		if (aquiring_result == VK_ERROR_OUT_OF_DATE_KHR)
+		{
+			// when swap chain needs recreation
+			recreateSwapChain();
+			return;
+		}
+		else if (aquiring_result != VK_SUCCESS && aquiring_result != VK_SUBOPTIMAL_KHR)
+		{
+			throw std::runtime_error("Failed to acquire swap chain image!");
+		}
 	}
-	else if (aquiring_result != VK_SUCCESS && aquiring_result != VK_SUBOPTIMAL_KHR)
+
+	// submit light culling command buffer
 	{
-		throw std::runtime_error("Failed to acquire swap chain image!");
+		vk::SubmitInfo submit_info = {
+			0, // waitSemaphoreCount
+			nullptr, // pWaitSemaphores
+			nullptr, // pwaitDstStageMask
+			1, // commandBufferCount
+			&static_cast<vk::CommandBuffer>(light_culling_command_buffer), // pCommandBuffers
+			0, // singalSemaphoreCount
+			nullptr // pSingalSemaphores
+		};
+		compute_queue.submit(1, &submit_info, VK_NULL_HANDLE);
 	}
+	// TODO: use Fence
 
 	// 2. Submitting the command buffer
-	VkSubmitInfo submit_info = {};
-	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	VkSemaphore wait_semaphores[] = { image_available_semaphore }; // which semaphore to wait
-	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }; // which stage to execute
-	submit_info.waitSemaphoreCount = 1;
-	submit_info.pWaitSemaphores = wait_semaphores;
-	submit_info.pWaitDstStageMask = wait_stages;
-	submit_info.commandBufferCount = 1;
-	submit_info.pCommandBuffers = &command_buffers[image_index];
-	VkSemaphore signal_semaphores[] = { render_finished_semaphore };
-	submit_info.signalSemaphoreCount = 1;
-	submit_info.pSignalSemaphores = signal_semaphores;
-
-	auto submit_result = vkQueueSubmit(graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
-	if (submit_result != VK_SUCCESS) {
-		throw std::runtime_error("Failed to submit draw command buffer!");
+	{
+		VkSubmitInfo submit_info = {};
+		submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		VkSemaphore wait_semaphores[] = { image_available_semaphore }; // which semaphore to wait
+		VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }; // which stage to execute
+		submit_info.waitSemaphoreCount = 1;
+		submit_info.pWaitSemaphores = wait_semaphores;
+		submit_info.pWaitDstStageMask = wait_stages;
+		submit_info.commandBufferCount = 1;
+		submit_info.pCommandBuffers = &command_buffers[image_index];
+		VkSemaphore signal_semaphores[] = { render_finished_semaphore };
+		submit_info.signalSemaphoreCount = 1;
+		submit_info.pSignalSemaphores = signal_semaphores;
+	
+		auto submit_result = vkQueueSubmit(graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
+		if (submit_result != VK_SUCCESS) {
+			throw std::runtime_error("Failed to submit draw command buffer!");
+		}
 	}
 
 	// 3. Submitting the result back to the swap chain to show it on screen
-	VkPresentInfoKHR present_info = {};
-	present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	present_info.waitSemaphoreCount = 1;
-	present_info.pWaitSemaphores = signal_semaphores;
-	VkSwapchainKHR swapChains[] = { swap_chain };
-	present_info.swapchainCount = 1;
-	present_info.pSwapchains = swapChains;
-	present_info.pImageIndices = &image_index;
-	present_info.pResults = nullptr; // Optional, check for if every single chains is successful
-
-	auto present_result = vkQueuePresentKHR(present_queue, &present_info);
-
-	if (present_result == VK_ERROR_OUT_OF_DATE_KHR || present_result == VK_SUBOPTIMAL_KHR)
 	{
-		recreateSwapChain();
-	}
-	else if (present_result != VK_SUCCESS)
-	{
-		throw std::runtime_error("Failed to present swap chain image!");
+		VkPresentInfoKHR present_info = {};
+		present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+		present_info.waitSemaphoreCount = 1;
+		VkSemaphore present_wait_semaphores[] = { render_finished_semaphore };
+		present_info.pWaitSemaphores = present_wait_semaphores;
+		VkSwapchainKHR swapChains[] = { swap_chain };
+		present_info.swapchainCount = 1;
+		present_info.pSwapchains = swapChains;
+		present_info.pImageIndices = &image_index;
+		present_info.pResults = nullptr; // Optional, check for if every single chains is successful
+
+		auto present_result = vkQueuePresentKHR(present_queue, &present_info);
+
+		if (present_result == VK_ERROR_OUT_OF_DATE_KHR || present_result == VK_SUBOPTIMAL_KHR)
+		{
+			recreateSwapChain();
+		}
+		else if (present_result != VK_SUCCESS)
+		{
+			throw std::runtime_error("Failed to present swap chain image!");
+		}
 	}
 }
 

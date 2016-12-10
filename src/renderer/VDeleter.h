@@ -43,7 +43,13 @@ public:
 		return &object;
 	}
 
+	// deprecated?
 	operator T() const
+	{
+		return object;
+	}
+
+	const T& get() const 
 	{
 		return object;
 	}
