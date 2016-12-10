@@ -7,6 +7,13 @@ struct PointLight {
 	vec3 intensity;
 };
 
+#define MAX_POINT_LIGHT_PER_TILE 63
+struct LightVisiblity
+{
+	int count;
+	int lightindices[MAX_POINT_LIGHT_PER_TILE];
+};
+
 layout(std140, set = 0, binding = 0) uniform UniformBufferObject
 {
     mat4 model;
@@ -17,6 +24,12 @@ layout(std140, set = 0, binding = 0) uniform UniformBufferObject
 
 layout(set = 0, binding = 1) uniform sampler2D tex_sampler;
 layout(set = 0, binding = 2) uniform sampler2D normal_sampler;
+
+layout(std430, set = 1, binding = 0) buffer readonly TileLightVisiblities
+{
+    LightVisiblity light_visiblities[];
+};
+
 layout(std140, set = 1, binding = 1) uniform PointLights // readonly buffer PointLights
 {
 	int light_num;
@@ -30,7 +43,7 @@ layout(location = 3) in vec3 frag_pos_world;
 
 layout(location = 0) out vec4 out_color;
 
-const vec3 light_direction = vec3(1.0, 1.0, 1.0);
+const int TILE_SIZE = 16; 
 
 vec3 applyNormalMap(vec3 geomnor, vec3 normap)
 {
@@ -66,14 +79,19 @@ void main()
             vec3 viewDir = normalize(transform.cam_pos - frag_pos_world);
             vec3 halfDir = normalize(light_dir + viewDir);
             float specAngle = max(dot(halfDir, normal), 0.0);
-            float specular = pow(specAngle, 32.0); // TODO?: spec color & power in g-buffer?
+            float specular = pow(specAngle, 32.0);  // TODO?: spec color & power in g-buffer?
 
             float att = clamp(1.0 - light_distance * light_distance / (light.radius * light.radius), 0.0, 1.0);
             illuminance += light.intensity * att * (lambertian * diffuse + specular);
         }
 	}
 
-    out_color = vec4(illuminance, 1.0);
+    ivec2 tile_id = ivec2(gl_FragCoord.xy / TILE_SIZE);
+    uint tile_index = tile_id.y * 120 + tile_id.x;  // hardcoded, don't resize and break anything
+    //out_color = vec4(vec3(float(light_visiblities[tile_index].count) / 8100.0), 1.0) ;
+    out_color = vec4(0.0, 0.0, 0.0, 1.0);
+    out_color[light_visiblities[tile_index].count % 3] = 1.0;
+    //out_color = vec4(illuminance, 1.0); 
     //out_color = vec4(abs(normal), 1.0);
     //out_color = vec4(abs(texture(normal_sampler, frag_tex_coord).rgb), 1.0); // normal map debug view
 }
