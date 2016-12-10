@@ -188,6 +188,8 @@ private:
 
 	VDeleter<VkDescriptorPool> descriptor_pool{ graphics_device, vkDestroyDescriptorPool };
 	VkDescriptorSet descriptor_set;
+	VkDescriptorSet compute_lightculling_descriptor_set;
+	VkDescriptorSet graphics_lightculling_descriptor_set;
 
 	// vertex buffer
 	VDeleter<VkBuffer> vertex_buffer{ this->graphics_device, vkDestroyBuffer };
@@ -235,9 +237,54 @@ private:
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME
 	};
 
-	void initVulkan();
+	void initVulkan() 
+	{
+		createInstance();
+		setupDebugCallback();
+		createWindowSurface(); 
+		pickPhysicalDevice();
+		findQueueFamilyIndices();
+		createLogicalDevice();
+		createSwapChain();
+		createSwapChainImageViews();
+		createRenderPass();
+		createDescriptorSetLayout();
+		createGraphicsPipeline();
+		createComputePipeline();
+		createCommandPool();
+		createDepthResources();
+		createFrameBuffers();
+		createTextureAndNormal();
+		createTextureSampler();
+		std::tie(vertices, vertex_indices) = util::loadModel();
+		// TODO: better to use a single memory allocation for multiple buffers
+		createVertexBuffer();
+		createIndexBuffer();
+		createUniformBuffer();
+		createLights();
+		createDescriptorPool();
+		createDescriptorSet();
+		createCommandBuffers();
+		createLigutCullingDescriptorSet(); 
+		createLightVisibilityBuffer(); // create a light visiblity buffer and update descriptor sets, need to rerun after changing size
+		createLightCullingCommandBuffer();
+		createSemaphores();
+	}
 
-	void recreateSwapChain();
+	void recreateSwapChain() 
+	{
+		vkDeviceWaitIdle(graphics_device);
+
+		createSwapChain();
+		createSwapChainImageViews();
+		createRenderPass();
+		createGraphicsPipeline();
+		createDepthResources();
+		createFrameBuffers();
+		createCommandBuffers();
+		createLightVisibilityBuffer(); // since it's size will scale with window;
+		createLightCullingCommandBuffer();
+	}
 
 	void createInstance();
 	void setupDebugCallback();
@@ -265,6 +312,7 @@ private:
 	void createSemaphores();
 
 	void createComputePipeline();
+	void createLigutCullingDescriptorSet();
 	void createLightVisibilityBuffer();
 	void createLightCullingCommandBuffer();
 	
@@ -428,39 +476,6 @@ void _VulkanContext_Impl::setCamera(const glm::mat4 & view, const glm::vec3 camp
 	this->cam_pos = campos;
 }
 
-void _VulkanContext_Impl::initVulkan()
-{
-	createInstance();
-	setupDebugCallback();
-	createWindowSurface();
-	pickPhysicalDevice();
-	findQueueFamilyIndices();
-	createLogicalDevice();
-	createSwapChain();
-	createSwapChainImageViews();
-	createRenderPass();
-	createDescriptorSetLayout();
-	createGraphicsPipeline();
-	createComputePipeline();
-	createCommandPool();
-	createDepthResources();
-	createFrameBuffers();
-	createTextureAndNormal();
-	createTextureSampler();
-	std::tie(vertices, vertex_indices) = util::loadModel();
-	// TODO: better to use a single memory allocation for multiple buffers
-	createVertexBuffer();
-	createIndexBuffer();
-	createUniformBuffer();
-	createLights();
-	createLightVisibilityBuffer();
-	createDescriptorPool();
-	createDescriptorSet();
-	createCommandBuffers();
-	createLightCullingCommandBuffer();
-	createSemaphores();
-}
-
 // Needs to be called right after instance creation because it may influence device selection
 void _VulkanContext_Impl::createWindowSurface()
 {
@@ -470,21 +485,6 @@ void _VulkanContext_Impl::createWindowSurface()
 	{
 		throw std::runtime_error("Failed to create window surface!");
 	}
-}
-
-void _VulkanContext_Impl::recreateSwapChain()
-{
-	vkDeviceWaitIdle(graphics_device);
-
-	createSwapChain();
-	createSwapChainImageViews();
-	createRenderPass();
-	createGraphicsPipeline();
-	createDepthResources();
-	createFrameBuffers();
-	createCommandBuffers();
-	createLightVisibilityBuffer(); // since it's size will scale with window;
-	createLightCullingCommandBuffer();
 }
 
 void _VulkanContext_Impl::createInstance()
@@ -1382,17 +1382,18 @@ void _VulkanContext_Impl::createDescriptorPool()
 	std::array<VkDescriptorPoolSize, 3> pool_sizes = {};
 	//std::array<VkDescriptorPoolSize, 2> pool_sizes = {};
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	pool_sizes[0].descriptorCount = 2; // light buffer & camera buffer
+	pool_sizes[0].descriptorCount = 3; // light buffer & camera buffer & light buffer in compute pipeline
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	pool_sizes[1].descriptorCount = 2; // sampler for color map and normal map
 	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	pool_sizes[2].descriptorCount = 1; // light visiblity buffer
+	pool_sizes[2].descriptorCount = 2; // light visiblity buffer in graphics pipeline and compute pipeline
 
 	VkDescriptorPoolCreateInfo pool_info = {};
 	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	pool_info.poolSizeCount = (uint32_t)pool_sizes.size();
 	pool_info.pPoolSizes = pool_sizes.data();
-	pool_info.maxSets = 1;
+	pool_info.maxSets = 2; // one for graphics pipeline and one for compute pipeline
+	//TODO: one more in graphics pipeline for light visiblity
 	pool_info.flags = 0;
 	//poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 
@@ -1679,6 +1680,38 @@ void _VulkanContext_Impl::createComputePipeline()
 	}
 }
 
+/**
+* creating light visiblity descriptor sets for both passes
+*/
+void _VulkanContext_Impl::createLigutCullingDescriptorSet()
+{
+	// create dercriptor set in command pipeline
+	{	
+		// todo: reduce code duplication with createDescriptorSet() 
+		VkDescriptorSetLayout layouts[] = { compute_descriptor_set_layout };
+		VkDescriptorSetAllocateInfo alloc_info = {};
+		alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		alloc_info.descriptorPool = descriptor_pool;
+		alloc_info.descriptorSetCount = 1;
+		alloc_info.pSetLayouts = layouts;
+
+		compute_lightculling_descriptor_set = device.allocateDescriptorSets(alloc_info)[0];
+	}
+
+	// create dercriptor set in graphics pipeline... now I am just using the descriptor set from createDescriptorSet
+	//{
+	//	// todo: reduce code duplication with createDescriptorSet() 
+	//	VkDescriptorSetLayout layouts[] = { compute_descriptor_set_layout };
+	//	VkDescriptorSetAllocateInfo alloc_info = {};
+	//	alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	//	alloc_info.descriptorPool = descriptor_pool;
+	//	alloc_info.descriptorSetCount = 1;
+	//	alloc_info.pSetLayouts = layouts;
+
+	//	compute_lightculling_descriptor_set = device.allocateDescriptorSets(alloc_info)[0];
+	//}
+}
+
 // just for sizing information
 struct _Dummy_VisibleLightsForTile
 {
@@ -1700,6 +1733,8 @@ void _VulkanContext_Impl::createLightVisibilityBuffer()
 		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 		, &light_visibility_buffer
 		, &light_visibility_buffer_memory);
+
+	// Create desciptor set in compute shader
 
 }
 
