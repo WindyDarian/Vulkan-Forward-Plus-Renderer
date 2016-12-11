@@ -14,8 +14,8 @@ struct PointLight {
 
 struct LightVisiblity
 {
-	int count;
-	int lightindices[MAX_POINT_LIGHT_PER_TILE];
+	uint count;
+	uint lightindices[MAX_POINT_LIGHT_PER_TILE];
 };
 
 layout(push_constant) uniform PushConstantObject 
@@ -48,9 +48,6 @@ const vec2 ndc_upper_left = vec2(-1.0, -1.0);
 const float ndc_near_plane = 0.0;
 const float ndc_far_plane = 1.0;
 
-shared mat4 inv_projview;
-shared float ada[16];
-
 struct ViewFrustum
 {
 	vec4 planes[6];
@@ -60,7 +57,7 @@ struct ViewFrustum
 // Construct view frustum 
 ViewFrustum createFrustum(ivec2 tile_id)
 {
-	inv_projview = inverse(camera.projview); 
+	mat4 inv_projview = inverse(camera.projview); 
 
 	vec2 ndc_size_per_tile = 2.0 * vec2(TILE_SIZE, TILE_SIZE) / push_constants.viewport_size;
 	
@@ -136,7 +133,10 @@ bool isCollided(PointLight light, ViewFrustum frustum)
     return true;
 }
 
-//layout(local_size_x = 1 + MAX_POINT_LIGHT_PER_TILE) in; //TODO
+layout(local_size_x = 32) in; //TODO
+
+shared ViewFrustum frustum;
+shared uint light_count_for_tile;
 
 void main()
 {
@@ -145,27 +145,30 @@ void main()
 	//ivec2 tile_nums = ivec2(gl_NumWorkGroups.xy);
 	uint tile_index = tile_id.y * push_constants.tile_nums.x + tile_id.x;
 
-	
-
 	// TODO: depth culling??? (do i need to read depth output of vertex shader?????)
-	
 
-	//if (gl_LocalInvocationIndex == 0) { // TODO: local multithread
+	if (gl_LocalInvocationIndex == 0) 
+	{
+		frustum = createFrustum(tile_id);
+		light_count_for_tile = 0;
+	}
 
-	ViewFrustum frustum = createFrustum(tile_id);
+	barrier();
 
-	int light_count_for_tile = 0;
-	for (int i = 0; i < light_num && light_count_for_tile < MAX_POINT_LIGHT_PER_TILE; i++)
+	for (uint i = gl_LocalInvocationIndex; i < light_num && light_count_for_tile < MAX_POINT_LIGHT_PER_TILE; i += gl_WorkGroupSize.x)
 	{
 		if (isCollided(pointlights[i], frustum))
 		{
-			light_visiblities[tile_index].lightindices[light_count_for_tile] = i;
-			light_count_for_tile++;
+			uint slot = atomicAdd(light_count_for_tile, 1);
+			if (slot >= MAX_POINT_LIGHT_PER_TILE) {break;}
+			light_visiblities[tile_index].lightindices[slot] = i;
 		}
 	}
 
-	light_visiblities[tile_index].count = light_count_for_tile;
+	barrier();
 
-	//}
-	//barrier();
+	if (gl_LocalInvocationIndex == 0) 
+	{
+		light_visiblities[tile_index].count = max(MAX_POINT_LIGHT_PER_TILE, light_count_for_tile);
+	}
 }

@@ -1800,8 +1800,8 @@ void _VulkanContext_Impl::createLigutCullingDescriptorSet()
 // just for sizing information
 struct _Dummy_VisibleLightsForTile
 {
-	int count;
-	std::array<int, MAX_POINT_LIGHT_PER_TILE> lightindices;
+	uint32_t count;
+	std::array<uint32_t, MAX_POINT_LIGHT_PER_TILE> lightindices;
 };
 
 /**

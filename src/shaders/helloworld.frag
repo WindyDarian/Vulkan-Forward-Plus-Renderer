@@ -10,8 +10,8 @@ struct PointLight {
 #define MAX_POINT_LIGHT_PER_TILE 63
 struct LightVisiblity
 {
-	int count;
-	int lightindices[MAX_POINT_LIGHT_PER_TILE];
+	uint count;
+	uint lightindices[MAX_POINT_LIGHT_PER_TILE];
 };
 
 layout(push_constant) uniform PushConstantObject 
@@ -76,7 +76,7 @@ void main()
     ivec2 tile_id = ivec2(gl_FragCoord.xy / TILE_SIZE);
     uint tile_index = tile_id.y * push_constants.tile_nums.x + tile_id.x; 
     
-    int tile_light_num = light_visiblities[tile_index].count;
+    uint tile_light_num = light_visiblities[tile_index].count;
     for (int i = 0; i < tile_light_num; i++)
 	{
         PointLight light = pointlights[light_visiblities[tile_index].lightindices[i]];
