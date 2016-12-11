@@ -44,21 +44,14 @@ layout(std140, set = 1, binding = 0) buffer readonly CameraUbo // FIXME: change 
 } camera;
 
 // vulkan ndc, minDepth = 0.0, maxDepth = 1.0
-const vec3 ndc_upper_left_near = vec3(-1.0, -1.0, 0.0);
-const vec3 ndc_upper_right_near = vec3(1.0, -1.0, 0.0);
-const vec3 ndc_lower_left_near = vec3(-1.0, 1.0, 0.0);
-const vec3 ndc_lower_right_near = vec3(1.0, 1.0, 0.0);
-const vec3 ndc_upper_left_far = vec3(-1.0, -1.0, 1.0);
-const vec3 ndc_upper_right_far = vec3(1.0, -1.0, 1.0);
-const vec3 ndc_lower_left_far = vec3(-1.0, 1.0, 1.0);
-const vec3 ndc_lower_right_far = vec3(1.0, 1.0, 1.0);
+const vec2 ndc_upper_left = vec2(-1.0, -1.0);
 const float ndc_near_plane = 0.0;
 const float ndc_far_plane = 1.0;
 
 shared mat4 inv_projview;
 shared float ada[16];
 
-layout(local_size_x = 1 + MAX_POINT_LIGHT_PER_TILE) in;
+//layout(local_size_x = 1 + MAX_POINT_LIGHT_PER_TILE) in; //TODO
 
 void main()
 {
@@ -72,23 +65,27 @@ void main()
 	// TODO: depth culling??? (do i need to read depth output of vertex shader?????)
 	
 	// Construct frustum planes
-	if (gl_LocalInvocationIndex == 0) {
-		//inv_projview = inverse(camera.projview); // crash
-		//inv_projview = camera.projview; // crash
-		// for (int i = 0; i < 16; i++) 
-		// {
-		// 	ada[i] = camera.projview[i/4][i%4]; // crash
-		// }
-		// for (int i = 0; i < 16; i++) 
-		// {
-		// 	ada[i] = i; // work
-		// }
-		// ada[0] = camera.projview[0][0]; // crash
-		ada[0] = 1;
-		
-		// wtf
-		// TODO
+	//if (gl_LocalInvocationIndex == 0) { // TODO: local multithread
+	inv_projview = inverse(camera.projview); 
 
+	vec2 ndc_size_per_tile = 2.0 * vec2(TILE_SIZE, TILE_SIZE) / push_constants.viewport_size;
+	
+	vec2 ndc_pts[4];  // corners of tile in ndc
+	ndc_pts[0] = ndc_upper_left + tile_id * ndc_size_per_tile;  // upper left
+	ndc_pts[1] = vec2(ndc_pts[0].x + ndc_size_per_tile.x, ndc_pts[0].y); // upper right
+	ndc_pts[2] = vec2(ndc_pts[0].x, ndc_pts[0].y + ndc_size_per_tile.x); // lower left
+	ndc_pts[3] = ndc_pts[0] + ndc_size_per_tile;
+
+	vec3 near_pts[4];
+	vec3 far_pts[4];
+	vec4 temp;
+	for (int i = 0; i < 4; i++)
+	{
+		temp = inv_projview * vec4(ndc_pts[i], ndc_near_plane, 1.0);
+		near_pts[i] = temp.xyz / temp.w;
+		temp = inv_projview * vec4(ndc_pts[i], ndc_far_plane, 1.0);
+		far_pts[i] = temp.xyz / temp.w;
 	}
-	barrier();
+	//}
+	//barrier();
 }
