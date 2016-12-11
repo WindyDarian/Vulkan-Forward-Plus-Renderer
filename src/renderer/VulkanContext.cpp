@@ -227,8 +227,8 @@ private:
 	std::vector<uint32_t> vertex_indices;
 
 	std::vector<PointLight> pointlights;
-	const glm::vec3 LIGHTPOS_MIN = { -15, -10, -20 };
-	const glm::vec3 LIGHTPOS_MAX = { 15, 20, 20 };
+	const glm::vec3 LIGHTPOS_MIN = { -15, -5, -5 };
+	const glm::vec3 LIGHTPOS_MAX = { 15, 20, 5 };
 
 	// This storage buffer stores visible lights for each tile
 	// which is output from the light culling compute shader
@@ -1451,7 +1451,10 @@ void _VulkanContext_Impl::createUniformBuffers()
 void _VulkanContext_Impl::createLights()
 {
 	for (int i = 0; i < 200; i++) {
-		pointlights.emplace_back(glm::linearRand(LIGHTPOS_MIN, LIGHTPOS_MAX), 5, glm::linearRand(glm::vec3(0, 0, 0), glm::vec3(1, 1, 1)));
+		glm::vec3 color;
+		do { color = { glm::linearRand(glm::vec3(0, 0, 0), glm::vec3(1, 1, 1)) }; } 
+		while (color.length() < 0.8f);
+		pointlights.emplace_back(glm::linearRand(LIGHTPOS_MIN, LIGHTPOS_MAX), 5, color);
 	}
 	// TODO: choose between memory mapping and staging buffer
 	//  (given that the lights are moving)

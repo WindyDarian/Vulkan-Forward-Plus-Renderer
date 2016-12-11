@@ -69,6 +69,7 @@ make
 
 #### References
 * [Vulkan Tutorial by Alexander Overvoorde](https://vulkan-tutorial.com)
+* [Correct Frustum Culling](http://www.iquilezles.org/www/articles/frustumcorrect/frustumcorrect.htm)
 
 #### Libraries
 * [CMake](https://cmake.org/)

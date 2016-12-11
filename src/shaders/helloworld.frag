@@ -76,9 +76,10 @@ void main()
     ivec2 tile_id = ivec2(gl_FragCoord.xy / TILE_SIZE);
     uint tile_index = tile_id.y * push_constants.tile_nums.x + tile_id.x; 
     
-    for (int i = 0; i < light_num; i++)
+    int tile_light_num = light_visiblities[tile_index].count;
+    for (int i = 0; i < tile_light_num; i++)
 	{
-        PointLight light = pointlights[i];
+        PointLight light = pointlights[light_visiblities[tile_index].lightindices[i]];
 		vec3 light_dir = normalize(light.pos - frag_pos_world);
         float lambertian = max(dot(light_dir, normal), 0.0);
 
@@ -100,9 +101,9 @@ void main()
         }
 	}
     
-    //out_color = vec4(illuminance, 1.0); 
-    //out_color = vec4(illuminance, 1.0); 
-    out_color = vec4(vec3(float(light_visiblities[tile_index].count) / 64), 1.0) ; //light culling debug
+    out_color = vec4(illuminance, 1.0); 
+    //out_color = vec4(vec3(float(light_visiblities[tile_index].count) / 32) + illuminance, 1.0) ; //light culling debug
+
     //out_color = vec4(0.0, 0.0, 0.0, 1.0);
     //out_color[light_visiblities[tile_index].count] = 1.0;
     //out_color = vec4(illuminance, 1.0); 

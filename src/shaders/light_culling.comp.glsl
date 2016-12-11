@@ -51,8 +51,6 @@ const float ndc_far_plane = 1.0;
 shared mat4 inv_projview;
 shared float ada[16];
 
-//layout(local_size_x = 1 + MAX_POINT_LIGHT_PER_TILE) in; //TODO
-
 struct ViewFrustum
 {
 	vec4 planes[6];
@@ -126,8 +124,19 @@ bool isCollided(PointLight light, ViewFrustum frustum)
         if( probe ==8 ) return false;
     }
 
+	// check frustum outside/inside box
+    int probe;
+    probe=0; for( int i=0; i<8; i++ ) probe += ((frustum.points[i].x > light_bbox_max.x)?1:0); if( probe==8 ) return false;
+    probe=0; for( int i=0; i<8; i++ ) probe += ((frustum.points[i].x < light_bbox_min.x)?1:0); if( probe==8 ) return false;
+    probe=0; for( int i=0; i<8; i++ ) probe += ((frustum.points[i].y > light_bbox_max.y)?1:0); if( probe==8 ) return false;
+    probe=0; for( int i=0; i<8; i++ ) probe += ((frustum.points[i].y < light_bbox_min.y)?1:0); if( probe==8 ) return false;
+    probe=0; for( int i=0; i<8; i++ ) probe += ((frustum.points[i].z > light_bbox_max.z)?1:0); if( probe==8 ) return false;
+    probe=0; for( int i=0; i<8; i++ ) probe += ((frustum.points[i].z < light_bbox_min.z)?1:0); if( probe==8 ) return false;
+
     return true;
 }
+
+//layout(local_size_x = 1 + MAX_POINT_LIGHT_PER_TILE) in; //TODO
 
 void main()
 {
