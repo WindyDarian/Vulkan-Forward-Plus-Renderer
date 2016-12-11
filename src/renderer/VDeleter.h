@@ -55,6 +55,11 @@ public:
 		return object;
 	}
 
+	T* data()
+	{
+		return &object;
+	}
+
 	VDeleter(VDeleter<T>&& other)
 		: object(VK_NULL_HANDLE) // to be swapped to "other"
 		, deleter(other.deleter) // deleter will be copied in case there is still use for the old container

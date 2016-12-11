@@ -170,7 +170,7 @@ private:
 	VDeleter<VkPipelineLayout> compute_pipeline_layout{ graphics_device, vkDestroyPipelineLayout };
 	VDeleter<VkPipeline> compute_pipeline{ graphics_device, vkDestroyPipeline };
 	VDeleter<VkCommandPool> compute_command_pool{ graphics_device, vkDestroyCommandPool };
-	VkCommandBuffer light_culling_command_buffer = VK_NULL_HANDLE;
+	vk::CommandBuffer light_culling_command_buffer = VK_NULL_HANDLE;
 	//VRaii<vk::PipelineLayout> compute_pipeline_layout;
 	//VRaii<vk::Pipeline> compute_pipeline;
 
@@ -178,8 +178,9 @@ private:
 	VDeleter<VkCommandPool> command_pool{ graphics_device, vkDestroyCommandPool };
 	std::vector<VkCommandBuffer> command_buffers; // buffers will be released when pool destroyed
 
-	VDeleter<VkSemaphore> image_available_semaphore{ graphics_device, vkDestroySemaphore };
-	VDeleter<VkSemaphore> render_finished_semaphore{ graphics_device, vkDestroySemaphore };
+	VRaii<vk::Semaphore> image_available_semaphore;
+	VRaii<vk::Semaphore> render_finished_semaphore;
+	VRaii<vk::Semaphore> lightculling_completed_semaphore;
 
 	// only one image buffer for depth because only one draw operation happens at one time
 	VDeleter<VkImage> depth_image{ graphics_device, vkDestroyImage };
@@ -1693,16 +1694,25 @@ void _VulkanContext_Impl::createCommandBuffers()
 
 void _VulkanContext_Impl::createSemaphores()
 {
-	VkSemaphoreCreateInfo semaphore_info = {};
-	semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+	vk::SemaphoreCreateInfo semaphore_info = { vk::SemaphoreCreateFlags() };
 
-	auto result1 = vkCreateSemaphore(graphics_device, &semaphore_info, nullptr, &image_available_semaphore);
-	auto result2 = vkCreateSemaphore(graphics_device, &semaphore_info, nullptr, &render_finished_semaphore);
-
-	if (result1 != VK_SUCCESS || result2 != VK_SUCCESS)
+	auto destroy_func = [&device = this->device](auto & obj)
 	{
-		throw std::runtime_error("failed to create semaphores!");
-	}
+		device.destroySemaphore(obj);
+	};
+
+	render_finished_semaphore = VRaii<vk::Semaphore>(
+		device.createSemaphore(semaphore_info, nullptr),
+		destroy_func
+	);
+	image_available_semaphore = VRaii<vk::Semaphore>(
+		device.createSemaphore(semaphore_info, nullptr),
+		destroy_func
+	);
+	lightculling_completed_semaphore = VRaii<vk::Semaphore>(
+		device.createSemaphore(semaphore_info, nullptr), 
+		destroy_func
+	);
 }
 
 
@@ -1855,20 +1865,21 @@ void _VulkanContext_Impl::createLightVisibilityBuffer()
 void _VulkanContext_Impl::createLightCullingCommandBuffer()
 {
 	
-	if (light_culling_command_buffer != VK_NULL_HANDLE)
+	if (light_culling_command_buffer)
 	{
-		vkFreeCommandBuffers(graphics_device, compute_command_pool, 1, &light_culling_command_buffer);
+		device.freeCommandBuffers(compute_command_pool.get(), 1, &light_culling_command_buffer);
 		light_culling_command_buffer = VK_NULL_HANDLE;
 	}
 
 	// Create light culling command buffer
 	{
-		VkCommandBufferAllocateInfo alloc_info = {};
-		alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		alloc_info.commandPool = compute_command_pool;
-		alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		alloc_info.commandBufferCount = 1;
-		vulkan_util::checkResult(vkAllocateCommandBuffers(graphics_device, &alloc_info, &light_culling_command_buffer));
+		vk::CommandBufferAllocateInfo alloc_info = {
+			compute_command_pool.get(), // command pool
+			vk::CommandBufferLevel::ePrimary, // level
+			1 // commandBufferCount
+		};
+
+		light_culling_command_buffer = device.allocateCommandBuffers(alloc_info)[0];
 	}
 
 	// Record command buffer
@@ -2001,7 +2012,7 @@ void _VulkanContext_Impl::drawFrame()
 	uint32_t image_index;
 	{
 		auto aquiring_result = vkAcquireNextImageKHR(graphics_device, swap_chain
-			, ACQUIRE_NEXT_IMAGE_TIMEOUT, image_available_semaphore, VK_NULL_HANDLE, &image_index);
+			, ACQUIRE_NEXT_IMAGE_TIMEOUT, image_available_semaphore.get(), VK_NULL_HANDLE, &image_index);
 
 		if (aquiring_result == VK_ERROR_OUT_OF_DATE_KHR)
 		{
@@ -2022,26 +2033,25 @@ void _VulkanContext_Impl::drawFrame()
 			nullptr, // pWaitSemaphores
 			nullptr, // pwaitDstStageMask
 			1, // commandBufferCount
-			&static_cast<vk::CommandBuffer>(light_culling_command_buffer), // pCommandBuffers
-			0, // singalSemaphoreCount
-			nullptr // pSingalSemaphores
+			&light_culling_command_buffer, // pCommandBuffers
+			1, // singalSemaphoreCount
+			lightculling_completed_semaphore.data() // pSingalSemaphores
 		};
 		compute_queue.submit(1, &submit_info, VK_NULL_HANDLE);
 	}
-	// TODO: use Fence
 
 	// 2. Submitting the command buffer
 	{
 		VkSubmitInfo submit_info = {};
 		submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		VkSemaphore wait_semaphores[] = { image_available_semaphore }; // which semaphore to wait
-		VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }; // which stage to execute
-		submit_info.waitSemaphoreCount = 1;
+		VkSemaphore wait_semaphores[] = { image_available_semaphore.get() , lightculling_completed_semaphore.get() }; // which semaphore to wait
+		VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT }; // which stage to execute
+		submit_info.waitSemaphoreCount = 2;
 		submit_info.pWaitSemaphores = wait_semaphores;
 		submit_info.pWaitDstStageMask = wait_stages;
 		submit_info.commandBufferCount = 1;
 		submit_info.pCommandBuffers = &command_buffers[image_index];
-		VkSemaphore signal_semaphores[] = { render_finished_semaphore };
+		VkSemaphore signal_semaphores[] = { render_finished_semaphore.get() };
 		submit_info.signalSemaphoreCount = 1;
 		submit_info.pSignalSemaphores = signal_semaphores;
 	
@@ -2050,13 +2060,14 @@ void _VulkanContext_Impl::drawFrame()
 			throw std::runtime_error("Failed to submit draw command buffer!");
 		}
 	}
+	// TODO: use Fence and we can have cpu start working at a earlier time
 
 	// 3. Submitting the result back to the swap chain to show it on screen
 	{
 		VkPresentInfoKHR present_info = {};
 		present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 		present_info.waitSemaphoreCount = 1;
-		VkSemaphore present_wait_semaphores[] = { render_finished_semaphore };
+		VkSemaphore present_wait_semaphores[] = { render_finished_semaphore.get() };
 		present_info.pWaitSemaphores = present_wait_semaphores;
 		VkSwapchainKHR swapChains[] = { swap_chain };
 		present_info.swapchainCount = 1;
