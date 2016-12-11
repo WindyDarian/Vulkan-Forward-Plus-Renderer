@@ -945,7 +945,7 @@ void _VulkanContext_Impl::createDescriptorSetLayouts()
 		// create descriptor for uniform buffer objects
 		VkDescriptorSetLayoutBinding ubo_layout_binding = {};
 		ubo_layout_binding.binding = 0;
-		ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; 
 		ubo_layout_binding.descriptorCount = 1;
 		ubo_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT; // only referencing from vertex shader
 		// VK_SHADER_STAGE_ALL_GRAPHICS
@@ -985,7 +985,7 @@ void _VulkanContext_Impl::createDescriptorSetLayouts()
 	{
 		vk::DescriptorSetLayoutBinding ubo_layout_binding = {
 			0,  // binding
-			vk::DescriptorType::eUniformBuffer,  // descriptorType
+			vk::DescriptorType::eStorageBuffer,  // descriptorType // FIXME: change back to uniform
 			1,  // descriptorCount
 			vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute, // stagFlags
 			nullptr, // pImmutableSamplers
@@ -1014,7 +1014,7 @@ void _VulkanContext_Impl::createDescriptorSetLayouts()
 			// create descriptor for storage buffer for light culling results
 			VkDescriptorSetLayoutBinding lb = {};
 			lb.binding = 0;
-			lb.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			lb.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER; 
 			lb.descriptorCount = 1;
 			lb.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 			lb.pImmutableSamplers = nullptr;
@@ -1025,7 +1025,7 @@ void _VulkanContext_Impl::createDescriptorSetLayouts()
 			// uniform buffer for point lights
 			VkDescriptorSetLayoutBinding lb = {};
 			lb.binding = 1;
-			lb.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			lb.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER; // FIXME: change back to uniform
 			lb.descriptorCount = 1;  // maybe we can use this for different types of lights
 			lb.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 			lb.pImmutableSamplers = nullptr;
@@ -1439,7 +1439,7 @@ void _VulkanContext_Impl::createUniformBuffers()
 			, &camera_staging_buffer
 			, &camera_staging_buffer_memory);
 		createBuffer(bufferSize
-			, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+			, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT  // FIXME: change back to uniform
 			, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 			, &camera_uniform_buffer
 			, &camera_uniform_buffer_memory
@@ -1467,12 +1467,11 @@ void _VulkanContext_Impl::createLights()
 		, &lights_staging_buffer_memory);
 
 	createBuffer(pointlight_buffer_size
-		, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT   // TODO: uniform or storage? <- We still want to use storage buffer
+		, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT  // FIXME: change back to uniform
 		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 		, &pointlight_buffer
 		, &pointlight_buffer_memory
-		, queue_family_indices.graphics_family
-		, queue_family_indices.compute_family);
+	); // using barrier to sync
 }
 
 void _VulkanContext_Impl::createDescriptorPool()
@@ -1605,7 +1604,7 @@ void _VulkanContext_Impl::createCameraDescriptorSet()
 			0, // dstBinding
 			0, // distArrayElement
 			1, // descriptorCount
-			vk::DescriptorType::eUniformBuffer, //descriptorType 
+			vk::DescriptorType::eStorageBuffer, //descriptorType // FIXME: change back to uniform
 			nullptr, //pImageInfo
 			&camera_uniform_buffer_info, //pBufferInfo
 			nullptr //pTexBufferView
@@ -1820,9 +1819,7 @@ void _VulkanContext_Impl::createLightVisibilityBuffer()
 		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 		, &light_visibility_buffer
 		, &light_visibility_buffer_memory
-		, queue_family_indices.compute_family
-		, queue_family_indices.graphics_family
-	);
+	); // using barrier to sync
 
 	// Write desciptor set in compute shader
 	{
@@ -1858,7 +1855,7 @@ void _VulkanContext_Impl::createLightVisibilityBuffer()
 			1, // dstBinding
 			0, // distArrayElement
 			1, // descriptorCount
-			vk::DescriptorType::eUniformBuffer, //descriptorType // TODO: should use uniform buffer... but I don't know why it doesn't work in compute shader
+			vk::DescriptorType::eStorageBuffer, //descriptorType // FIXME: change back to uniform
 			nullptr, //pImageInfo
 			&pointlight_buffer_info, //pBufferInfo
 			nullptr //pTexBufferView
@@ -1905,8 +1902,9 @@ void _VulkanContext_Impl::createLightCullingCommandBuffer()
 		// using barrier since the sharing mode when allocating memory is exclusive
 		// begin after fragment shader finished reading from storage buffer
 		
-		vk::BufferMemoryBarrier buffer_barrier_before =
-		{
+		std::vector<vk::BufferMemoryBarrier> barriers_before;
+		barriers_before.emplace_back
+		(
 			vk::AccessFlagBits::eShaderRead,  // srcAccessMask
 			vk::AccessFlagBits::eShaderWrite,  // dstAccessMask
 			static_cast<uint32_t>(queue_family_indices.graphics_family),  // srcQueueFamilyIndex
@@ -1914,24 +1912,17 @@ void _VulkanContext_Impl::createLightCullingCommandBuffer()
 			static_cast<VkBuffer>(light_visibility_buffer),  // buffer
 			0,  // offset
 			light_visibility_buffer_size  // size
-		};
-
-		vk::BufferMemoryBarrier light_uniform_barrier_before =
-		{
-			vk::AccessFlagBits::eUniformRead,  // srcAccessMask
-			vk::AccessFlagBits::eUniformRead,  // dstAccessMask
+		);
+		barriers_before.emplace_back
+		(
+			vk::AccessFlagBits::eShaderRead,  // srcAccessMask // FIXME: change back to uniform
+			vk::AccessFlagBits::eShaderWrite,  // dstAccessMask
 			static_cast<uint32_t>(queue_family_indices.graphics_family),  // srcQueueFamilyIndex
 			static_cast<uint32_t>(queue_family_indices.compute_family),  // dstQueueFamilyIndex
 			static_cast<VkBuffer>(pointlight_buffer),  // buffer
 			0,  // offset
 			pointlight_buffer_size  // size
-		};
-
-		std::array<vk::BufferMemoryBarrier, 2> barriers_before =
-		{
-			buffer_barrier_before,
-			light_uniform_barrier_before
-		};
+		);
 
 		command.pipelineBarrier(
 			vk::PipelineStageFlagBits::eFragmentShader,  // srcStageMask
@@ -1960,33 +1951,27 @@ void _VulkanContext_Impl::createLightCullingCommandBuffer()
 		command.bindPipeline(vk::PipelineBindPoint::eCompute, static_cast<VkPipeline>(compute_pipeline));
 		command.dispatch(tile_count_per_row, tile_count_per_col, 1);
 
-		vk::BufferMemoryBarrier buffer_barrier_after =
-		{
-			vk::AccessFlagBits::eShaderWrite, // dist access mask
-			vk::AccessFlagBits::eShaderRead, //source access mask
-			static_cast<uint32_t>(queue_family_indices.compute_family),
-			static_cast<uint32_t>(queue_family_indices.graphics_family),
-			static_cast<VkBuffer>(light_visibility_buffer),
-			0,
-			light_visibility_buffer_size
-		};
-
-		vk::BufferMemoryBarrier light_uniform_barrier_after =
-		{
-			vk::AccessFlagBits::eUniformRead,  // srcAccessMask
-			vk::AccessFlagBits::eUniformRead,  // dstAccessMask
-			static_cast<uint32_t>(queue_family_indices.compute_family),  // srcQueueFamilyIndex
+		std::vector<vk::BufferMemoryBarrier> barriers_after;
+		barriers_after.emplace_back
+		(
+			vk::AccessFlagBits::eShaderWrite,  // srcAccessMask
+			vk::AccessFlagBits::eShaderRead,  // dstAccessMask
+			static_cast<uint32_t>(queue_family_indices.compute_family), // srcQueueFamilyIndex
+			static_cast<uint32_t>(queue_family_indices.graphics_family),  // dstQueueFamilyIndex
+			static_cast<VkBuffer>(light_visibility_buffer),  // buffer
+			0,  // offset
+			light_visibility_buffer_size  // size
+		);
+		barriers_after.emplace_back
+		(
+			vk::AccessFlagBits::eShaderWrite,  // srcAccessMask // TODO: change back to uniform
+			vk::AccessFlagBits::eShaderRead,  // dstAccessMask
+			static_cast<uint32_t>(queue_family_indices.compute_family), // srcQueueFamilyIndex
 			static_cast<uint32_t>(queue_family_indices.graphics_family),  // dstQueueFamilyIndex
 			static_cast<VkBuffer>(pointlight_buffer),  // buffer
 			0,  // offset
 			pointlight_buffer_size  // size
-		};
-
-		std::array<vk::BufferMemoryBarrier, 2> barriers_after =
-		{
-			buffer_barrier_after,
-			light_uniform_barrier_after
-		};
+		);
 
 		command.pipelineBarrier(
 			vk::PipelineStageFlagBits::eComputeShader,

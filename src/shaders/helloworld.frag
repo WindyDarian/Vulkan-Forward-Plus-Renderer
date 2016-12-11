@@ -28,7 +28,7 @@ layout(std140, set = 0, binding = 0) uniform SceneObjectUbo
 layout(set = 0, binding = 1) uniform sampler2D tex_sampler;
 layout(set = 0, binding = 2) uniform sampler2D normal_sampler;
 
-layout(std140, set = 1, binding = 0) uniform CameraUbo
+layout(std140, set = 1, binding = 0) buffer readonly CameraUbo // FIXME: change back to uniform
 {
     mat4 view;
     mat4 proj;
@@ -41,7 +41,7 @@ layout(std430, set = 2, binding = 0) buffer readonly TileLightVisiblities
     LightVisiblity light_visiblities[];
 };
 
-layout(std140, set = 2, binding = 1) uniform PointLights // readonly buffer PointLights
+layout(std140, set = 2, binding = 1) buffer readonly PointLights // FIXME: change back to uniform // readonly buffer PointLights
 {
 	int light_num;
 	PointLight pointlights[1000];

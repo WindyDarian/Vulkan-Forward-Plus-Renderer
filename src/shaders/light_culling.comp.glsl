@@ -29,13 +29,13 @@ layout(std430, set = 0, binding = 0) buffer writeonly TileLightVisiblities
     LightVisiblity light_visiblities[];
 };
 
-layout(std140, set = 0, binding = 1) uniform PointLights // readonly buffer PointLights
+layout(std140, set = 0, binding = 1) buffer readonly PointLights // FIXME: change back to uniform
 {
 	int light_num;
 	PointLight pointlights[1000];
 };
 
-layout(std140, set = 1, binding = 0) uniform CameraUbo
+layout(std140, set = 1, binding = 0) buffer readonly CameraUbo // FIXME: change back to uniform
 {
     mat4 view;
     mat4 proj;
