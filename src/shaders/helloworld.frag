@@ -73,6 +73,9 @@ void main()
 
     vec3 normal = applyNormalMap(frag_normal, texture(normal_sampler, frag_tex_coord).rgb);
 
+    ivec2 tile_id = ivec2(gl_FragCoord.xy / TILE_SIZE);
+    uint tile_index = tile_id.y * push_constants.tile_nums.x + tile_id.x; 
+    
     for (int i = 0; i < light_num; i++)
 	{
         PointLight light = pointlights[i];
@@ -96,13 +99,10 @@ void main()
             illuminance += light.intensity * att * (lambertian * diffuse + specular);
         }
 	}
-
-    ivec2 tile_id = ivec2(gl_FragCoord.xy / TILE_SIZE);
-    uint tile_index = tile_id.y * push_constants.tile_nums.x + tile_id.x; 
     
-    out_color = vec4(illuminance, 1.0); 
     //out_color = vec4(illuminance, 1.0); 
-    //out_color = vec4(vec3(float(light_visiblities[tile_index].count) / 8100.0), 1.0) ;
+    //out_color = vec4(illuminance, 1.0); 
+    out_color = vec4(vec3(float(light_visiblities[tile_index].count) / 64), 1.0) ; //light culling debug
     //out_color = vec4(0.0, 0.0, 0.0, 1.0);
     //out_color[light_visiblities[tile_index].count] = 1.0;
     //out_color = vec4(illuminance, 1.0); 

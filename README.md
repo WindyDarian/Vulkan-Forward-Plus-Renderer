@@ -10,11 +10,6 @@ Members:
 * [Ruoyu Fan](http://windy.moe/portfolio)
 * [Xueyin Wan](https://github.com/xueyinw)
 
-## TODOs
-* Split VulkanShowBase into ShowBase and VulkanContext
-* Camera control
-* Point Light
-
 ## Milestones
 
 ### Milestone 3 (12/12/2016)
@@ -22,9 +17,9 @@ Members:
   * Compute pipeline
   * Shared descriptor sets for lights and camera to use compute pipeline output as fragment shader input.
     * Also used some push constants for the change of tile numbers after resizing window 
-  * TODO: light culling
+  * Light culling
   
-![](/screenshots/push_constant_tile_nums.gif)
+![](/screenshots/culling_1.jpg)
 
 ### Milestone 2 (11/28/2016)
 * Forward+ framework in progress:
