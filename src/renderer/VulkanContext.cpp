@@ -1675,7 +1675,7 @@ void _VulkanContext_Impl::createCommandBuffers()
 
 		std::array<VkDescriptorSet, 3> descriptor_sets = {object_descriptor_set, camera_descriptor_set, light_culling_descriptor_set};
 		vkCmdBindDescriptorSets(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS
-			, pipeline_layout, 0, descriptor_sets.size(), descriptor_sets.data(), 0, nullptr);
+			, pipeline_layout, 0, static_cast<uint32_t>(descriptor_sets.size()), descriptor_sets.data(), 0, nullptr);
 		// TODO: better to store vertex buffer and index buffer in a single VkBuffer
 		
 
