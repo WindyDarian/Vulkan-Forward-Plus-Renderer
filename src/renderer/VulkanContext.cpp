@@ -1457,6 +1457,7 @@ void _VulkanContext_Impl::createLights()
 	auto light_num = static_cast<int>(pointlights.size());
 
 	pointlight_buffer_size = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(int);
+	pointlight_buffer_size = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(glm::vec4); // vec4 rather than int for padding
 
 	createBuffer(pointlight_buffer_size
 		, VK_BUFFER_USAGE_TRANSFER_SRC_BIT // to be transfered from
