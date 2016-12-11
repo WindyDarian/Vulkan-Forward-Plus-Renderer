@@ -364,8 +364,7 @@ private:
 		);
 	}
 
-	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags property_bits
-		, VkBuffer* p_buffer, VkDeviceMemory* p_buffer_memory);
+	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags property_bits, VkBuffer * p_buffer, VkDeviceMemory * p_buffer_memory, int sharing_queue_family_index_a = -1, int sharing_queue_family_index_b = -1);
 	void copyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
 
 	void createImage(uint32_t image_width, uint32_t image_height
@@ -1443,7 +1442,9 @@ void _VulkanContext_Impl::createUniformBuffers()
 			, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
 			, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 			, &camera_uniform_buffer
-			, &camera_uniform_buffer_memory);
+			, &camera_uniform_buffer_memory
+			, queue_family_indices.graphics_family
+			, queue_family_indices.compute_family);
 	}
 }
 
@@ -1466,10 +1467,12 @@ void _VulkanContext_Impl::createLights()
 		, &lights_staging_buffer_memory);
 
 	createBuffer(pointlight_buffer_size
-		, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT  | VK_BUFFER_USAGE_TRANSFER_DST_BIT   // TODO: uniform or storage? <- We still want to use storage buffer
+		, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT   // TODO: uniform or storage? <- We still want to use storage buffer
 		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 		, &pointlight_buffer
-		, &pointlight_buffer_memory);
+		, &pointlight_buffer_memory
+		, queue_family_indices.graphics_family
+		, queue_family_indices.compute_family);
 }
 
 void _VulkanContext_Impl::createDescriptorPool()
@@ -1482,7 +1485,7 @@ void _VulkanContext_Impl::createDescriptorPool()
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	pool_sizes[1].descriptorCount = 2; // sampler for color map and normal map
 	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	pool_sizes[2].descriptorCount = 2; // light visiblity buffer in graphics pipeline and compute pipeline
+	pool_sizes[2].descriptorCount = 3; // light visiblity buffer in graphics pipeline and compute pipeline
 
 	VkDescriptorPoolCreateInfo pool_info = {};
 	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1602,7 +1605,7 @@ void _VulkanContext_Impl::createCameraDescriptorSet()
 			0, // dstBinding
 			0, // distArrayElement
 			1, // descriptorCount
-			vk::DescriptorType::eUniformBuffer, //descriptorType
+			vk::DescriptorType::eUniformBuffer, //descriptorType 
 			nullptr, //pImageInfo
 			&camera_uniform_buffer_info, //pBufferInfo
 			nullptr //pTexBufferView
@@ -1811,11 +1814,15 @@ void _VulkanContext_Impl::createLightVisibilityBuffer()
 
 	light_visibility_buffer_size = sizeof(_Dummy_VisibleLightsForTile) * tile_count_per_row * tile_count_per_col;
 
-	createBuffer(light_visibility_buffer_size
+	createBuffer(
+		light_visibility_buffer_size
 		, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
 		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 		, &light_visibility_buffer
-		, &light_visibility_buffer_memory);
+		, &light_visibility_buffer_memory
+		, queue_family_indices.compute_family
+		, queue_family_indices.graphics_family
+	);
 
 	// Write desciptor set in compute shader
 	{
@@ -1851,7 +1858,7 @@ void _VulkanContext_Impl::createLightVisibilityBuffer()
 			1, // dstBinding
 			0, // distArrayElement
 			1, // descriptorCount
-			vk::DescriptorType::eUniformBuffer, //descriptorType
+			vk::DescriptorType::eUniformBuffer, //descriptorType // TODO: should use uniform buffer... but I don't know why it doesn't work in compute shader
 			nullptr, //pImageInfo
 			&pointlight_buffer_info, //pBufferInfo
 			nullptr //pTexBufferView
@@ -1897,6 +1904,7 @@ void _VulkanContext_Impl::createLightCullingCommandBuffer()
 
 		// using barrier since the sharing mode when allocating memory is exclusive
 		// begin after fragment shader finished reading from storage buffer
+		
 		vk::BufferMemoryBarrier buffer_barrier_before =
 		{
 			vk::AccessFlagBits::eShaderRead,  // srcAccessMask
@@ -1907,14 +1915,32 @@ void _VulkanContext_Impl::createLightCullingCommandBuffer()
 			0,  // offset
 			light_visibility_buffer_size  // size
 		};
+
+		vk::BufferMemoryBarrier light_uniform_barrier_before =
+		{
+			vk::AccessFlagBits::eUniformRead,  // srcAccessMask
+			vk::AccessFlagBits::eUniformRead,  // dstAccessMask
+			static_cast<uint32_t>(queue_family_indices.graphics_family),  // srcQueueFamilyIndex
+			static_cast<uint32_t>(queue_family_indices.compute_family),  // dstQueueFamilyIndex
+			static_cast<VkBuffer>(pointlight_buffer),  // buffer
+			0,  // offset
+			pointlight_buffer_size  // size
+		};
+
+		std::array<vk::BufferMemoryBarrier, 2> barriers_before =
+		{
+			buffer_barrier_before,
+			light_uniform_barrier_before
+		};
+
 		command.pipelineBarrier(
 			vk::PipelineStageFlagBits::eFragmentShader,  // srcStageMask
 			vk::PipelineStageFlagBits::eComputeShader,  // dstStageMask
 			vk::DependencyFlags(),  // dependencyFlags
 			0,  // memoryBarrierCount 
 			nullptr,  // pBUfferMemoryBarriers
-			1,  // bufferMemoryBarrierCount
-			&buffer_barrier_before,  // pBUfferMemoryBarriers
+			barriers_before.size(),  // bufferMemoryBarrierCount
+			barriers_before.data(),  // pBUfferMemoryBarriers
 			0,  // imageMemoryBarrierCount
 			nullptr // pImageMemoryBarriers
 		);
@@ -1945,12 +1971,29 @@ void _VulkanContext_Impl::createLightCullingCommandBuffer()
 			light_visibility_buffer_size
 		};
 
+		vk::BufferMemoryBarrier light_uniform_barrier_after =
+		{
+			vk::AccessFlagBits::eUniformRead,  // srcAccessMask
+			vk::AccessFlagBits::eUniformRead,  // dstAccessMask
+			static_cast<uint32_t>(queue_family_indices.compute_family),  // srcQueueFamilyIndex
+			static_cast<uint32_t>(queue_family_indices.graphics_family),  // dstQueueFamilyIndex
+			static_cast<VkBuffer>(pointlight_buffer),  // buffer
+			0,  // offset
+			pointlight_buffer_size  // size
+		};
+
+		std::array<vk::BufferMemoryBarrier, 2> barriers_after =
+		{
+			buffer_barrier_after,
+			light_uniform_barrier_after
+		};
+
 		command.pipelineBarrier(
 			vk::PipelineStageFlagBits::eComputeShader,
 			vk::PipelineStageFlagBits::eFragmentShader,
 			vk::DependencyFlags(),
 			0, nullptr,
-			1, &buffer_barrier_after, // TODO
+			barriers_after.size(), barriers_after.data(), // TODO
 			0, nullptr
 		);
 
@@ -2076,7 +2119,7 @@ void _VulkanContext_Impl::drawFrame()
 		present_info.pImageIndices = &image_index;
 		present_info.pResults = nullptr; // Optional, check for if every single chains is successful
 
-		auto present_result = vkQueuePresentKHR(present_queue, &present_info);
+		VkResult present_result = vkQueuePresentKHR(present_queue, &present_info);
 
 		if (present_result == VK_ERROR_OUT_OF_DATE_KHR || present_result == VK_SUBOPTIMAL_KHR)
 		{
@@ -2180,14 +2223,25 @@ VkFormat _VulkanContext_Impl::findSupportedFormat(const std::vector<VkFormat>& c
 }
 
 void _VulkanContext_Impl::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags property_bits
-	, VkBuffer* p_buffer, VkDeviceMemory* p_buffer_memory)
+	, VkBuffer* p_buffer, VkDeviceMemory* p_buffer_memory, int sharing_queue_family_index_a, int sharing_queue_family_index_b)
 {
-	// create vertex buffer
 	VkBufferCreateInfo buffer_info = {};
 	buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	buffer_info.size = size;
 	buffer_info.usage = usage;
-	buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE; // vertex buffer only used in graphics queue
+
+	std::array<uint32_t, 2> indices;
+	if (sharing_queue_family_index_a >= 0 && sharing_queue_family_index_b >= 0 && sharing_queue_family_index_a != sharing_queue_family_index_b)
+	{
+		indices = { static_cast<uint32_t>(sharing_queue_family_index_a) , static_cast<uint32_t>(sharing_queue_family_index_b) };
+		buffer_info.sharingMode = VK_SHARING_MODE_CONCURRENT;
+		buffer_info.queueFamilyIndexCount = indices.size();
+		buffer_info.pQueueFamilyIndices = indices.data();
+	}
+	else
+	{
+		buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE; 
+	}
 	buffer_info.flags = 0;
 
 	auto buffer_result = vkCreateBuffer(graphics_device, &buffer_info, nullptr, p_buffer);
