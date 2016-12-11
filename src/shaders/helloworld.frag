@@ -20,23 +20,28 @@ layout(push_constant) uniform PushConstantObject
 	ivec2 tile_nums;
 } push_constants;
 
-layout(std140, set = 0, binding = 0) uniform UniformBufferObject
+layout(std140, set = 0, binding = 0) uniform SceneObjectUbo
 {
     mat4 model;
-    mat4 view;
-    mat4 proj;
-    vec3 cam_pos;
 } transform;
 
 layout(set = 0, binding = 1) uniform sampler2D tex_sampler;
 layout(set = 0, binding = 2) uniform sampler2D normal_sampler;
 
-layout(std430, set = 1, binding = 0) buffer readonly TileLightVisiblities
+layout(std140, set = 1, binding = 0) uniform CameraUbo
+{
+    mat4 view;
+    mat4 proj;
+    mat4 projview;
+    vec3 cam_pos;
+} camera;
+
+layout(std430, set = 2, binding = 0) buffer readonly TileLightVisiblities
 {
     LightVisiblity light_visiblities[];
 };
 
-layout(std140, set = 1, binding = 1) uniform PointLights // readonly buffer PointLights
+layout(std140, set = 2, binding = 1) uniform PointLights // readonly buffer PointLights
 {
 	int light_num;
 	PointLight pointlights[1000];
@@ -82,7 +87,7 @@ void main()
                 continue;
             }
 
-            vec3 viewDir = normalize(transform.cam_pos - frag_pos_world);
+            vec3 viewDir = normalize(camera.cam_pos - frag_pos_world);
             vec3 halfDir = normalize(light_dir + viewDir);
             float specAngle = max(dot(halfDir, normal), 0.0);
             float specular = pow(specAngle, 32.0);  // TODO?: spec color & power in g-buffer?
@@ -94,9 +99,12 @@ void main()
 
     ivec2 tile_id = ivec2(gl_FragCoord.xy / TILE_SIZE);
     uint tile_index = tile_id.y * push_constants.tile_nums.x + tile_id.x; 
+    
+    out_color = vec4(illuminance, 1.0); 
+    //out_color = vec4(illuminance, 1.0); 
     //out_color = vec4(vec3(float(light_visiblities[tile_index].count) / 8100.0), 1.0) ;
-    out_color = vec4(0.0, 0.0, 0.0, 1.0);
-    out_color[light_visiblities[tile_index].count] = 1.0;
+    //out_color = vec4(0.0, 0.0, 0.0, 1.0);
+    //out_color[light_visiblities[tile_index].count] = 1.0;
     //out_color = vec4(illuminance, 1.0); 
     //out_color = vec4(abs(normal), 1.0);
     //out_color = vec4(abs(texture(normal_sampler, frag_tex_coord).rgb), 1.0); // normal map debug view

@@ -33,6 +33,14 @@ layout(std140, set = 0, binding = 1) uniform PointLights // readonly buffer Poin
 	PointLight pointlights[1000];
 };
 
+layout(std140, set = 1, binding = 0) uniform CameraUbo
+{
+    mat4 view;
+    mat4 proj;
+    mat4 projview;
+    vec3 cam_pos;
+} camera;
+
 void main()
 {
     // wild work in progress!

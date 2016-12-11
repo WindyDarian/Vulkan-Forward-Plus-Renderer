@@ -36,12 +36,18 @@ const int MAX_POINT_LIGHT_COUNT = 1000;
 const int MAX_POINT_LIGHT_PER_TILE = 63;
 const int TILE_SIZE = 16;
 
-struct UniformBufferObject
+// uniform buffer object for model transformation
+struct SceneObjectUbo
 {
-	// todo merge these 3
 	glm::mat4 model;
+};
+
+// uniform buffer object for camera
+struct CameraUbo
+{
 	glm::mat4 view;
 	glm::mat4 proj;
+	glm::mat4 projview;
 	glm::vec3 cam_pos;
 };
 
@@ -82,13 +88,11 @@ struct QueueFamilyIndices
 		{
 			if (queuefamily.queueCount > 0 && queuefamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
 			{
-				// Graphics queue_family
 				indices.graphics_family = i;
 			}
 
 			if (queuefamily.queueCount > 0 && queuefamily.queueFlags & VK_QUEUE_COMPUTE_BIT)
 			{
-				// Graphics queue_family
 				indices.compute_family = i;
 			}
 
@@ -96,7 +100,6 @@ struct QueueFamilyIndices
 			vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
 			if (queuefamily.queueCount > 0 && presentSupport)
 			{
-				// Graphics queue_family
 				indices.present_family = i;
 			}
 
@@ -158,7 +161,8 @@ private:
 	std::vector<VDeleter<VkFramebuffer>> swap_chain_framebuffers;
 	VDeleter<VkRenderPass> render_pass{ graphics_device, vkDestroyRenderPass };
 
-	VDeleter<VkDescriptorSetLayout> descriptor_set_layout{ graphics_device, vkDestroyDescriptorSetLayout };
+	VDeleter<VkDescriptorSetLayout> object_descriptor_set_layout{ graphics_device, vkDestroyDescriptorSetLayout };
+	VRaii<vk::DescriptorSetLayout> camera_descriptor_set_layout;
 	VDeleter<VkPipelineLayout> pipeline_layout{ graphics_device, vkDestroyPipelineLayout };
 	VDeleter<VkPipeline> graphics_pipeline{ graphics_device, vkDestroyPipeline };
 
@@ -191,14 +195,19 @@ private:
 	VDeleter<VkImageView> normalmap_image_view{ graphics_device, vkDestroyImageView };
 	VDeleter<VkSampler> texture_sampler{ graphics_device, vkDestroySampler };
 
-	// uniform buffer and descriptor
-	VDeleter<VkBuffer> uniform_staging_buffer{ graphics_device, vkDestroyBuffer };
-	VDeleter<VkDeviceMemory> uniform_staging_buffer_memory{ graphics_device, vkFreeMemory };
-	VDeleter<VkBuffer> uniform_buffer{ graphics_device, vkDestroyBuffer };
-	VDeleter<VkDeviceMemory> uniform_buffer_memory{ graphics_device, vkFreeMemory };
+	// uniform buffers
+	VDeleter<VkBuffer> object_staging_buffer{ graphics_device, vkDestroyBuffer };
+	VDeleter<VkDeviceMemory> object_staging_buffer_memory{ graphics_device, vkFreeMemory };
+	VDeleter<VkBuffer> object_uniform_buffer{ graphics_device, vkDestroyBuffer };
+	VDeleter<VkDeviceMemory> object_uniform_buffer_memory{ graphics_device, vkFreeMemory };
+	VDeleter<VkBuffer> camera_staging_buffer{ graphics_device, vkDestroyBuffer };
+	VDeleter<VkDeviceMemory> camera_staging_buffer_memory{ graphics_device, vkFreeMemory };
+	VDeleter<VkBuffer> camera_uniform_buffer{ graphics_device, vkDestroyBuffer };
+	VDeleter<VkDeviceMemory> camera_uniform_buffer_memory{ graphics_device, vkFreeMemory };
 
 	VDeleter<VkDescriptorPool> descriptor_pool{ graphics_device, vkDestroyDescriptorPool };
-	VkDescriptorSet descriptor_set;
+	VkDescriptorSet object_descriptor_set;
+	vk::DescriptorSet camera_descriptor_set;
 	VkDescriptorSet light_culling_descriptor_set;
 
 	// vertex buffer
@@ -209,6 +218,8 @@ private:
 
 	VDeleter<VkBuffer> pointlight_buffer{ this->graphics_device, vkDestroyBuffer };
 	VDeleter<VkDeviceMemory> pointlight_buffer_memory{ graphics_device, vkFreeMemory };
+	VDeleter<VkBuffer> lights_staging_buffer{ graphics_device, vkDestroyBuffer };
+	VDeleter<VkDeviceMemory> lights_staging_buffer_memory{ graphics_device, vkFreeMemory };
 	VkDeviceSize pointlight_buffer_size;
 
 	std::vector<util::Vertex> vertices;
@@ -259,8 +270,7 @@ private:
 		createSwapChain();
 		createSwapChainImageViews();
 		createRenderPass();
-		createDescriptorSetLayout();
-		createLightCullingDescriptorSetLayout();
+		createDescriptorSetLayouts();
 		createGraphicsPipeline();
 		createComputePipeline();
 		createCommandPool();
@@ -272,10 +282,11 @@ private:
 		// TODO: better to use a single memory allocation for multiple buffers
 		createVertexBuffer();
 		createIndexBuffer();
-		createUniformBuffer();
+		createUniformBuffers();
 		createLights();
 		createDescriptorPool();
-		createDescriptorSet();
+		createSceneObjectDescriptorSet();
+		createCameraDescriptorSet();
 		createLigutCullingDescriptorSet();
 		createLightVisibilityBuffer(); // create a light visiblity buffer and update descriptor sets, need to rerun after changing size
 		createCommandBuffers();
@@ -307,7 +318,7 @@ private:
 	void createSwapChain();
 	void createSwapChainImageViews();
 	void createRenderPass();
-	void createDescriptorSetLayout();
+	void createDescriptorSetLayouts();
 	void createGraphicsPipeline();
 	void createCommandPool();
 	void createDepthResources();
@@ -316,20 +327,20 @@ private:
 	void createTextureSampler();
 	void createVertexBuffer();
 	void createIndexBuffer();
-	void createUniformBuffer();
+	void createUniformBuffers();
 	void createLights();
 	void createDescriptorPool();
-	void createDescriptorSet();
+	void createSceneObjectDescriptorSet();
+	void createCameraDescriptorSet();
 	void createCommandBuffers();
 	void createSemaphores();
 
-	void createLightCullingDescriptorSetLayout();
 	void createComputePipeline();
 	void createLigutCullingDescriptorSet();
 	void createLightVisibilityBuffer();
 	void createLightCullingCommandBuffer();
 	
-	void updateUniformBuffer(float deltatime);
+	void updateUniformBuffers(float deltatime);
 	void drawFrame();
 
 	void createShaderModule(const std::vector<char>& code, VkShaderModule* p_shader_module);
@@ -472,7 +483,7 @@ void _VulkanContext_Impl::resize(int width, int height)
 
 void _VulkanContext_Impl::requestDraw(float deltatime)
 {
-	updateUniformBuffer(deltatime); // TODO: there is graphics queue waiting in copyBuffer() called by this so I don't need to sync CPU and GPU elsewhere... but someday I will make the copy command able to use multiple times and I need to sync on writing the staging buffer
+	updateUniformBuffers(deltatime); // TODO: there is graphics queue waiting in copyBuffer() called by this so I don't need to sync CPU and GPU elsewhere... but someday I will make the copy command able to use multiple times and I need to sync on writing the staging buffer
 	drawFrame();
 }
 
@@ -926,11 +937,11 @@ void _VulkanContext_Impl::createRenderPass()
 	}
 }
 
-void _VulkanContext_Impl::createDescriptorSetLayout()
+void _VulkanContext_Impl::createDescriptorSetLayouts()
 {
-	// TODO: separate camera and light to another layout
-	// UBO
+	// instance_descriptor_set_layout
 	{
+		// Transform information
 		// create descriptor for uniform buffer objects
 		VkDescriptorSetLayoutBinding ubo_layout_binding = {};
 		ubo_layout_binding.binding = 0;
@@ -956,16 +967,6 @@ void _VulkanContext_Impl::createDescriptorSetLayout()
 		normalmap_layout_binding.pImmutableSamplers = nullptr;
 		normalmap_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-		// MOVED to light_culling_descriptor_set_layout
-		//VkDescriptorSetLayoutBinding lights_layout_binding = {};
-		//lights_layout_binding.binding = 3;
-		//lights_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		//lights_layout_binding.descriptorCount = 1;
-		//lights_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT; // only referencing from vertex shader
-		//															// VK_SHADER_STAGE_ALL_GRAPHICS
-		//lights_layout_binding.pImmutableSamplers = nullptr; // Optional
-		//std::array<VkDescriptorSetLayoutBinding, 4> bindings = { ubo_layout_binding, sampler_layout_binding, normalmap_layout_binding, lights_layout_binding };
-
 		std::array<VkDescriptorSetLayoutBinding, 3> bindings = { ubo_layout_binding, sampler_layout_binding, normalmap_layout_binding };
 		// std::array<VkDescriptorSetLayoutBinding, 2> bindings = { ubo_layout_binding, sampler_layout_binding};
 		VkDescriptorSetLayoutCreateInfo layout_info = {};
@@ -974,12 +975,75 @@ void _VulkanContext_Impl::createDescriptorSetLayout()
 		layout_info.pBindings = bindings.data();
 
 
-		if (vkCreateDescriptorSetLayout(graphics_device, &layout_info, nullptr, &descriptor_set_layout) != VK_SUCCESS)
+		if (vkCreateDescriptorSetLayout(graphics_device, &layout_info, nullptr, &object_descriptor_set_layout) != VK_SUCCESS)
 		{
 			throw std::runtime_error("Failed to create descriptor set layout!");
 		}
 	}
 
+	// camera_descriptor_set_layout
+	{
+		vk::DescriptorSetLayoutBinding ubo_layout_binding = {
+			0,  // binding
+			vk::DescriptorType::eUniformBuffer,  // descriptorType
+			1,  // descriptorCount
+			vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute, // stagFlags
+			nullptr, // pImmutableSamplers
+		};
+
+		vk::DescriptorSetLayoutCreateInfo create_info = {
+			vk::DescriptorSetLayoutCreateFlags(), // flags
+			1,
+			&ubo_layout_binding,
+		};
+
+		camera_descriptor_set_layout = VRaii<vk::DescriptorSetLayout>(
+			device.createDescriptorSetLayout(create_info, nullptr),
+			[&device = this->device](auto & layout)
+			{
+				device.destroyDescriptorSetLayout(layout);
+			}
+		);
+	}
+
+	// light_culling_descriptor_set_layout
+	{
+		std::vector<VkDescriptorSetLayoutBinding> set_layout_bindings = {};
+
+		{
+			// create descriptor for storage buffer for light culling results
+			VkDescriptorSetLayoutBinding lb = {};
+			lb.binding = 0;
+			lb.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			lb.descriptorCount = 1;
+			lb.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+			lb.pImmutableSamplers = nullptr;
+			set_layout_bindings.push_back(lb);
+		}
+
+		{
+			// uniform buffer for point lights
+			VkDescriptorSetLayoutBinding lb = {};
+			lb.binding = 1;
+			lb.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			lb.descriptorCount = 1;  // maybe we can use this for different types of lights
+			lb.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+			lb.pImmutableSamplers = nullptr;
+			set_layout_bindings.push_back(lb);
+		}
+
+		VkDescriptorSetLayoutCreateInfo layout_info = {};
+		layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+		layout_info.bindingCount = static_cast<uint32_t>(set_layout_bindings.size());
+		layout_info.pBindings = set_layout_bindings.data();
+
+		auto result = vkCreateDescriptorSetLayout(graphics_device, &layout_info, nullptr, &light_culling_descriptor_set_layout);
+
+		if (result != VK_SUCCESS)
+		{
+			throw std::runtime_error("Unable to create descriptor layout for command queue!");
+		}
+	}
 }
 
 
@@ -1117,8 +1181,8 @@ void _VulkanContext_Impl::createGraphicsPipeline()
 	// no uniform variables or push constants
 	VkPipelineLayoutCreateInfo pipeline_layout_info = {};
 	pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	VkDescriptorSetLayout set_layouts[] = { descriptor_set_layout, light_culling_descriptor_set_layout };
-	pipeline_layout_info.setLayoutCount = 2; // Optional
+	VkDescriptorSetLayout set_layouts[] = { object_descriptor_set_layout, camera_descriptor_set_layout.get(), light_culling_descriptor_set_layout };
+	pipeline_layout_info.setLayoutCount = 3; // Optional
 	pipeline_layout_info.pSetLayouts = set_layouts; // Optional
 	pipeline_layout_info.pushConstantRangeCount = 1; // Optional
 	pipeline_layout_info.pPushConstantRanges = &push_constant_range; // Optional
@@ -1335,25 +1399,55 @@ void _VulkanContext_Impl::createIndexBuffer()
 	copyBuffer(staging_buffer, index_buffer, buffer_size);
 }
 
-void _VulkanContext_Impl::createUniformBuffer()
+void _VulkanContext_Impl::createUniformBuffers()
 {
-	VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+	// create buffers for scene object
+	{
+		VkDeviceSize bufferSize = sizeof(SceneObjectUbo);
 
-	createBuffer(bufferSize
-		, VK_BUFFER_USAGE_TRANSFER_SRC_BIT
-		, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-		, &uniform_staging_buffer
-		, &uniform_staging_buffer_memory);
-	createBuffer(bufferSize
-		, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
-		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-		, &uniform_buffer
-		, &uniform_buffer_memory);
+		createBuffer(bufferSize
+			, VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+			, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+			, &object_staging_buffer
+			, &object_staging_buffer_memory);
+		createBuffer(bufferSize
+			, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+			, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+			, &object_uniform_buffer
+			, &object_uniform_buffer_memory);
+	}
+
+	// Adding data to scene object buffer
+	{
+		SceneObjectUbo ubo = {};
+		ubo.model = glm::mat4(1.0f);
+
+		void* data;
+		vkMapMemory(graphics_device, object_staging_buffer_memory, 0, sizeof(ubo), 0, &data);
+		memcpy(data, &ubo, sizeof(ubo));
+		vkUnmapMemory(graphics_device, object_staging_buffer_memory);
+		copyBuffer(object_staging_buffer, object_uniform_buffer, sizeof(ubo));
+	}
+
+	// create buffers for camera
+	{
+		VkDeviceSize bufferSize = sizeof(CameraUbo);
+
+		createBuffer(bufferSize
+			, VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+			, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+			, &camera_staging_buffer
+			, &camera_staging_buffer_memory);
+		createBuffer(bufferSize
+			, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+			, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+			, &camera_uniform_buffer
+			, &camera_uniform_buffer_memory);
+	}
 }
 
 void _VulkanContext_Impl::createLights()
 {
-	//glm::linearRand(glm::vec3(10, 10, 10), glm::vec3(-10, -10, -10));
 	for (int i = 0; i < 200; i++) {
 		pointlights.emplace_back(glm::linearRand(LIGHTPOS_MIN, LIGHTPOS_MAX), 5, glm::linearRand(glm::vec3(0, 0, 0), glm::vec3(1, 1, 1)));
 	}
@@ -1363,41 +1457,17 @@ void _VulkanContext_Impl::createLights()
 
 	pointlight_buffer_size = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(int);
 
-	//// create staging buffer
-	//VDeleter<VkBuffer> staging_buffer{ graphics_device, vkDestroyBuffer };
-	//VDeleter<VkDeviceMemory> staging_buffer_memory{ graphics_device, vkFreeMemory };
-	//createBuffer(bufferSize
-	//	, VK_BUFFER_USAGE_TRANSFER_SRC_BIT // to be transfered from
-	//	, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-	//	, &staging_buffer
-	//	, &staging_buffer_memory);
-
-	//createBuffer(bufferSize
-	//	, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT  | VK_BUFFER_USAGE_TRANSFER_DST_BIT   // TODO: uniform or storage? <- We still want to use storage buffer
-	//	, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-	//	, &pointlight_buffer
-	//	, &pointlight_buffer_memory);
+	createBuffer(pointlight_buffer_size
+		, VK_BUFFER_USAGE_TRANSFER_SRC_BIT // to be transfered from
+		, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+		, &lights_staging_buffer
+		, &lights_staging_buffer_memory);
 
 	createBuffer(pointlight_buffer_size
-		, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT   // TODO: uniform or storage? <- We still want to use storage buffer
-		, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+		, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT  | VK_BUFFER_USAGE_TRANSFER_DST_BIT   // TODO: uniform or storage? <- We still want to use storage buffer
+		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 		, &pointlight_buffer
 		, &pointlight_buffer_memory);
-
-	auto size = sizeof(PointLight) * pointlights.size();
-	void* data;
-
-	//vkMapMemory(graphics_device, staging_buffer_memory, 0, bufferSize, 0, &data);
-	//memcpy(data, &light_num, sizeof(int));
-	//memcpy((char*)data + sizeof(glm::vec4), pointlights.data(), size);
-	//vkUnmapMemory(graphics_device, staging_buffer_memory);
-	//copyBuffer(staging_buffer, pointlight_buffer, bufferSize);
-
-	vkMapMemory(graphics_device, pointlight_buffer_memory, 0, pointlight_buffer_size, 0, &data);
-	memcpy(data, &light_num, sizeof(int));
-	memcpy((char*)data + sizeof(glm::vec4), pointlights.data(), size);
-	vkUnmapMemory(graphics_device, pointlight_buffer_memory);
-
 }
 
 void _VulkanContext_Impl::createDescriptorPool()
@@ -1406,7 +1476,7 @@ void _VulkanContext_Impl::createDescriptorPool()
 	std::array<VkDescriptorPoolSize, 3> pool_sizes = {};
 	//std::array<VkDescriptorPoolSize, 2> pool_sizes = {};
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	pool_sizes[0].descriptorCount = 3; // light buffer & camera buffer & light buffer in compute pipeline
+	pool_sizes[0].descriptorCount = 4; // transform buffer & light buffer & camera buffer & light buffer in compute pipeline
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	pool_sizes[1].descriptorCount = 2; // sampler for color map and normal map
 	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -1416,7 +1486,7 @@ void _VulkanContext_Impl::createDescriptorPool()
 	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	pool_info.poolSizeCount = (uint32_t)pool_sizes.size();
 	pool_info.pPoolSizes = pool_sizes.data();
-	pool_info.maxSets = 2; // one for graphics pipeline and one for compute pipeline
+	pool_info.maxSets = 3; // one for graphics pipeline and one for compute pipeline
 	// TODO: one more in graphics pipeline for light visiblity
 	pool_info.flags = 0;
 	//poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
@@ -1428,25 +1498,26 @@ void _VulkanContext_Impl::createDescriptorPool()
 	}
 }
 
-void _VulkanContext_Impl::createDescriptorSet()
+void _VulkanContext_Impl::createSceneObjectDescriptorSet()
 {
-	VkDescriptorSetLayout layouts[] = { descriptor_set_layout };
+	
+	VkDescriptorSetLayout layouts[] = { object_descriptor_set_layout };
 	VkDescriptorSetAllocateInfo alloc_info = {};
 	alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	alloc_info.descriptorPool = descriptor_pool;
 	alloc_info.descriptorSetCount = 1;
 	alloc_info.pSetLayouts = layouts;
 
-	if (vkAllocateDescriptorSets(graphics_device, &alloc_info, &descriptor_set) != VK_SUCCESS)
+	if (vkAllocateDescriptorSets(graphics_device, &alloc_info, &object_descriptor_set) != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to allocate descriptor set!");
 	}
 
 	// refer to the uniform object buffer
 	VkDescriptorBufferInfo buffer_info = {};
-	buffer_info.buffer = uniform_buffer;
+	buffer_info.buffer = object_uniform_buffer;
 	buffer_info.offset = 0;
-	buffer_info.range = sizeof(UniformBufferObject);
+	buffer_info.range = sizeof(SceneObjectUbo);
 
 	VkDescriptorImageInfo image_info = {};
 	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -1468,7 +1539,7 @@ void _VulkanContext_Impl::createDescriptorSet()
 
 	// ubo
 	descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptor_writes[0].dstSet = descriptor_set;
+	descriptor_writes[0].dstSet = object_descriptor_set;
 	descriptor_writes[0].dstBinding = 0;
 	descriptor_writes[0].dstArrayElement = 0;
 	descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -1479,7 +1550,7 @@ void _VulkanContext_Impl::createDescriptorSet()
 
 	// texture
 	descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptor_writes[1].dstSet = descriptor_set;
+	descriptor_writes[1].dstSet = object_descriptor_set;
 	descriptor_writes[1].dstBinding = 1;
 	descriptor_writes[1].dstArrayElement = 0;
 	descriptor_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1488,28 +1559,56 @@ void _VulkanContext_Impl::createDescriptorSet()
 
 	// normal map
 	descriptor_writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptor_writes[2].dstSet = descriptor_set;
+	descriptor_writes[2].dstSet = object_descriptor_set;
 	descriptor_writes[2].dstBinding = 2;
 	descriptor_writes[2].dstArrayElement = 0;
 	descriptor_writes[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	descriptor_writes[2].descriptorCount = 1;
 	descriptor_writes[2].pImageInfo = &normalmap_info;
 
-	// MOVED TO light_culling_descriptor_sets
-	//// lights
-	//descriptor_writes[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	//descriptor_writes[3].dstSet = descriptor_set;
-	//descriptor_writes[3].dstBinding = 3;
-	//descriptor_writes[3].dstArrayElement = 0;
-	//descriptor_writes[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	//descriptor_writes[3].descriptorCount = 1;
-	//descriptor_writes[3].pBufferInfo = &lights_buffer_info;
-	//descriptor_writes[3].pImageInfo = nullptr; // Optional
-	//descriptor_writes[3].pTexelBufferView = nullptr; // Optional
-
-
 	vkUpdateDescriptorSets(graphics_device, (uint32_t)descriptor_writes.size()
 		, descriptor_writes.data(), 0, nullptr);
+
+}
+
+void _VulkanContext_Impl::createCameraDescriptorSet()
+{
+	// Create descriptor set
+	{
+		vk::DescriptorSetAllocateInfo alloc_info = {
+			descriptor_pool.get(),  // descriptorPool
+			1,  // descriptorSetCount
+			camera_descriptor_set_layout.data(), // pSetLayouts
+		};
+
+		camera_descriptor_set = device.allocateDescriptorSets(alloc_info)[0];
+	}
+
+	// Write desciptor set
+	{
+		// refer to the uniform object buffer
+		vk::DescriptorBufferInfo camera_uniform_buffer_info{
+			camera_uniform_buffer.get(), // buffer_ 
+			0, //offset_
+			sizeof(CameraUbo) // range_
+		};
+
+		std::vector<vk::WriteDescriptorSet> descriptor_writes = {};
+
+		descriptor_writes.emplace_back(
+			camera_descriptor_set, // dstSet
+			0, // dstBinding
+			0, // distArrayElement
+			1, // descriptorCount
+			vk::DescriptorType::eUniformBuffer, //descriptorType
+			nullptr, //pImageInfo
+			&camera_uniform_buffer_info, //pBufferInfo
+			nullptr //pTexBufferView
+		);
+
+		std::array<vk::CopyDescriptorSet, 0> descriptor_copies;
+		device.updateDescriptorSets(descriptor_writes, descriptor_copies);
+	}
 }
 
 void _VulkanContext_Impl::createCommandBuffers()
@@ -1573,7 +1672,7 @@ void _VulkanContext_Impl::createCommandBuffers()
 		//vkCmdBindIndexBuffer(command_buffers[i], index_buffer, 0, VK_INDEX_TYPE_UINT16);
 		vkCmdBindIndexBuffer(command_buffers[i], index_buffer, 0, VK_INDEX_TYPE_UINT32);
 
-		std::array<VkDescriptorSet, 2> descriptor_sets = {descriptor_set, light_culling_descriptor_set};
+		std::array<VkDescriptorSet, 3> descriptor_sets = {object_descriptor_set, camera_descriptor_set, light_culling_descriptor_set};
 		vkCmdBindDescriptorSets(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS
 			, pipeline_layout, 0, descriptor_sets.size(), descriptor_sets.data(), 0, nullptr);
 		// TODO: better to store vertex buffer and index buffer in a single VkBuffer
@@ -1624,7 +1723,7 @@ void _VulkanContext_Impl::createComputePipeline()
 
 		VkPipelineLayoutCreateInfo pipeline_layout_info = {};
 		pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		std::array<VkDescriptorSetLayout, 1> set_layouts = { light_culling_descriptor_set_layout };
+		std::array<VkDescriptorSetLayout, 2> set_layouts = { light_culling_descriptor_set_layout, camera_descriptor_set_layout.get()};
 		pipeline_layout_info.setLayoutCount = static_cast<int>(set_layouts.size()); 
 		pipeline_layout_info.pSetLayouts = set_layouts.data(); 
 		pipeline_layout_info.pushConstantRangeCount = 1; 
@@ -1661,50 +1760,6 @@ void _VulkanContext_Impl::createComputePipeline()
 		cmd_pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 		vulkan_util::checkResult(vkCreateCommandPool(device, &cmd_pool_info, nullptr, &compute_command_pool));
 	}
-}
-
-
-void _VulkanContext_Impl::createLightCullingDescriptorSetLayout()
-{
-	// Step1: Create Descriptor Set Layout
-	{
-
-		std::vector<VkDescriptorSetLayoutBinding> set_layout_bindings = {};
-
-		{
-			// create descriptor for storage buffer for light culling results
-			VkDescriptorSetLayoutBinding lb = {};
-			lb.binding = 0;
-			lb.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-			lb.descriptorCount = 1;
-			lb.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-			lb.pImmutableSamplers = nullptr;
-			set_layout_bindings.push_back(lb);
-		}
-
-		{
-			// uniform buffer for point lights
-			VkDescriptorSetLayoutBinding lb = {};
-			lb.binding = 1;
-			lb.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-			lb.descriptorCount = 1;  // maybe we can use this for different types of lights
-			lb.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-			lb.pImmutableSamplers = nullptr;
-			set_layout_bindings.push_back(lb);
-		}
-
-		VkDescriptorSetLayoutCreateInfo layout_info = {};
-		layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-		layout_info.bindingCount = static_cast<uint32_t>(set_layout_bindings.size());
-		layout_info.pBindings = set_layout_bindings.data();
-
-		auto result = vkCreateDescriptorSetLayout(graphics_device, &layout_info, nullptr, &light_culling_descriptor_set_layout);
-
-		if (result != VK_SUCCESS)
-		{
-			throw std::runtime_error("Unable to create descriptor layout for command queue!");
-		}
-	};
 }
 
 /**
@@ -1755,21 +1810,17 @@ void _VulkanContext_Impl::createLightVisibilityBuffer()
 	{
 		// refer to the uniform object buffer
 		vk::DescriptorBufferInfo light_visibility_buffer_info{
-			static_cast<VkBuffer>(light_visibility_buffer), // buffer_ 
+			light_visibility_buffer.get(), // buffer_ 
 			0, //offset_
 			light_visibility_buffer_size // range_
 		};
 
 		// refer to the uniform object buffer
 		vk::DescriptorBufferInfo pointlight_buffer_info = { 
-			static_cast<VkBuffer>(pointlight_buffer), // buffer_ 
+			pointlight_buffer.get(), // buffer_ 
 			0, //offset_
 			pointlight_buffer_size // range_
 		};
-
-		pointlight_buffer_info.buffer = pointlight_buffer;
-		pointlight_buffer_info.offset = 0;
-		pointlight_buffer_info.range = pointlight_buffer_size;
 
 		std::vector<vk::WriteDescriptorSet> descriptor_writes = {};
 		
@@ -1832,6 +1883,7 @@ void _VulkanContext_Impl::createLightCullingCommandBuffer()
 
 		command.begin(begin_info);
 
+		// using barrier since the sharing mode when allocating memory is exclusive
 		// begin after fragment shader finished reading from storage buffer
 		vk::BufferMemoryBarrier buffer_barrier_before =
 		{
@@ -1860,7 +1912,7 @@ void _VulkanContext_Impl::createLightCullingCommandBuffer()
 			vk::PipelineBindPoint::eCompute, // pipelineBindPoint
 			compute_pipeline_layout.get(), // layout
 			0, // firstSet
-			std::array<vk::DescriptorSet, 1>{light_culling_descriptor_set}, // descriptorSets
+			std::array<vk::DescriptorSet, 2>{light_culling_descriptor_set, camera_descriptor_set}, // descriptorSets
 			std::array<uint32_t, 0>() // pDynamicOffsets
 		); 
 
@@ -1894,46 +1946,51 @@ void _VulkanContext_Impl::createLightCullingCommandBuffer()
 	}
 }
 
-void _VulkanContext_Impl::updateUniformBuffer(float deltatime)
+void _VulkanContext_Impl::updateUniformBuffers(float deltatime)
 {
 	static auto start_time = std::chrono::high_resolution_clock::now();
 
 	auto current_time = std::chrono::high_resolution_clock::now();
 	float time = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_time).count() / 1000.0f;
-	UniformBufferObject ubo = {};
-	
-	ubo.model = glm::mat4(1.0f);
-	ubo.view = view_matrix;
-	//ubo.model = glm::rotate(glm::mat4(), time * glm::radians(10.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	//ubo.view = glm::lookAt(glm::vec3(1.5f, 1.5f, 1.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	ubo.proj = glm::perspective(glm::radians(45.0f), swap_chain_extent.width / (float)swap_chain_extent.height, 0.5f, 100.0f);
-	ubo.proj[1][1] *= -1; //since the Y axis of Vulkan NDC points down
-	ubo.cam_pos = cam_pos;
 
-	void* data;
-	vkMapMemory(graphics_device, uniform_staging_buffer_memory, 0, sizeof(ubo), 0, &data);
-	memcpy(data, &ubo, sizeof(ubo));
-	vkUnmapMemory(graphics_device, uniform_staging_buffer_memory);
+	// update camera ubo
+	{
+		CameraUbo ubo = {};
+		ubo.view = view_matrix;
+		ubo.proj = glm::perspective(glm::radians(45.0f), swap_chain_extent.width / (float)swap_chain_extent.height, 0.5f, 100.0f);
+		ubo.proj[1][1] *= -1; //since the Y axis of Vulkan NDC points down
+		ubo.projview = ubo.proj * ubo.view;
+		ubo.cam_pos = cam_pos;
 
-	copyBuffer(uniform_staging_buffer, uniform_buffer, sizeof(ubo));
-	// TODO: maybe I shouldn't use single time buffer
+		void* data;
+		vkMapMemory(graphics_device, camera_staging_buffer_memory, 0, sizeof(ubo), 0, &data);
+		memcpy(data, &ubo, sizeof(ubo));
+		vkUnmapMemory(graphics_device, camera_staging_buffer_memory);
 
-	//TODO: use push constants
-	auto light_num = static_cast<int>(pointlights.size());
-	VkDeviceSize bufferSize = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(int);
-
-	for (int i = 0; i < light_num; i++) {
-		pointlights[i].pos += glm::vec3(0, 3.0f, 0) * deltatime;
-		if (pointlights[i].pos.y > LIGHTPOS_MAX.y) {
-			pointlights[i].pos.y -= (LIGHTPOS_MAX.y - LIGHTPOS_MIN.y);
-		}
+		// TODO: maybe I shouldn't use single time buffer
+		copyBuffer(camera_staging_buffer, camera_uniform_buffer, sizeof(ubo));
 	}
-	
-	auto size = sizeof(PointLight) * pointlights.size();
-	vkMapMemory(graphics_device, pointlight_buffer_memory, 0, bufferSize, 0, &data);
-	memcpy(data, &light_num, sizeof(int));
-	memcpy((char*)data + sizeof(glm::vec4), pointlights.data(), size);
-	vkUnmapMemory(graphics_device, pointlight_buffer_memory);
+
+	// update light ubo
+	{
+		auto light_num = static_cast<int>(pointlights.size());
+		VkDeviceSize bufferSize = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(int);
+
+		for (int i = 0; i < light_num; i++) {
+			pointlights[i].pos += glm::vec3(0, 3.0f, 0) * deltatime;
+			if (pointlights[i].pos.y > LIGHTPOS_MAX.y) {
+				pointlights[i].pos.y -= (LIGHTPOS_MAX.y - LIGHTPOS_MIN.y);
+			}
+		}
+
+		auto pointlights_size = sizeof(PointLight) * pointlights.size();
+		void* data;
+		vkMapMemory(graphics_device, lights_staging_buffer_memory, 0, pointlight_buffer_size, 0, &data);
+		memcpy(data, &light_num, sizeof(int));
+		memcpy((char*)data + sizeof(glm::vec4), pointlights.data(), pointlights_size);
+		vkUnmapMemory(graphics_device, lights_staging_buffer_memory);
+		copyBuffer(lights_staging_buffer, pointlight_buffer, pointlight_buffer_size);
+	}
 }
 
 const uint64_t ACQUIRE_NEXT_IMAGE_TIMEOUT{ std::numeric_limits<uint64_t>::max() };

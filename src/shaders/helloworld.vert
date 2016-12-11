@@ -1,14 +1,18 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-layout(std140, set = 0, binding = 0) uniform UniformBufferObject
+layout(std140, set = 0, binding = 0) uniform SceneObjectUbo
 {
-    // todo merge some of the matrics and do screen space lighting
     mat4 model;
+} transform;
+
+layout(std140, set = 1, binding = 0) uniform CameraUbo
+{
     mat4 view;
     mat4 proj;
+    mat4 projview;
     vec3 cam_pos;
-} transform;
+} camera;
 
 layout(location = 0) in vec3 in_position;
 layout(location = 1) in vec3 in_color;
@@ -28,7 +32,7 @@ out gl_PerVertex
 void main()
 {
     //todo: calculate them in cpu...
-    mat4 mvp = transform.proj * transform.view * transform.model;
+    mat4 mvp = camera.projview * transform.model;
     mat4 invtransmodel =  transpose(inverse(transform.model));
     //gl_Position = vec4(positions[gl_VertexIndex], 0.0, 1.0);
 

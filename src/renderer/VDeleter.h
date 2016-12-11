@@ -37,6 +37,7 @@ public:
 		cleanup();
 	}
 
+	// TODO: move to a reset() function
 	T* operator &()
 	{
 		cleanup();
@@ -112,9 +113,14 @@ public:
 		cleanup();
 	}
 
-	T& get()
+	const T& get() const
 	{
-		return obj;
+		return object;
+	}
+
+	T* data()
+	{
+		return &object;
 	}
 
 	//operator T() const
