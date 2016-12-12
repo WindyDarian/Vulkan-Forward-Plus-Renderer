@@ -18,6 +18,7 @@ layout(push_constant) uniform PushConstantObject
 {
 	ivec2 viewport_size;
 	ivec2 tile_nums;
+    int debugview_index;
 } push_constants;
 
 layout(std140, set = 0, binding = 0) uniform SceneObjectUbo
@@ -75,7 +76,7 @@ void main()
         out_color = vec4(0.0);
         return;
     }
-
+    
     vec4 color_map =  texture(tex_sampler, frag_tex_coord);
     vec3 diffuse = color_map.rgb;
     vec3 illuminance = vec3(0.0);
@@ -84,6 +85,28 @@ void main()
 
     ivec2 tile_id = ivec2(gl_FragCoord.xy / TILE_SIZE);
     uint tile_index = tile_id.y * push_constants.tile_nums.x + tile_id.x; 
+
+    // debug view
+    if (push_constants.debugview_index > 1)
+    {
+        if (push_constants.debugview_index == 2)
+        {
+            //heat map debug view
+            float intensity = float(light_visiblities[tile_index].count) / MAX_POINT_LIGHT_PER_TILE;
+            out_color = vec4(vec3(intensity, intensity, intensity), 1.0) ; //light culling debug
+        }   
+        else if (push_constants.debugview_index == 3)
+        {
+            // depth debug view
+            out_color = vec4(vec3( pre_depth ),1.0);
+        }
+        else if (push_constants.debugview_index == 4)
+        {
+            // normal debug view
+            out_color = vec4(abs(normal), 1.0);
+        }
+        return;
+    }
     
     uint tile_light_num = light_visiblities[tile_index].count;
     for (int i = 0; i < tile_light_num; i++)
@@ -110,17 +133,16 @@ void main()
         }
 	}
     
+    //heat map with render debug view
+    if (push_constants.debugview_index == 1)
+    {
+        float intensity = float(light_visiblities[tile_index].count) / (MAX_POINT_LIGHT_PER_TILE / 2.0);
+        out_color = vec4(vec3(intensity, intensity * 0.5, intensity * 0.5) + illuminance * 0.25, 1.0) ; //light culling debug
+        return;
+    }
+
     // render view
     out_color = vec4(illuminance, 1.0); 
-
-    // depth debug view
-    //out_color = vec4(vec3( pre_depth ),1.0);
-
-    // heat map debug view
-    // {
-    //     float intensity = float(light_visiblities[tile_index].count) / 32;
-    //     out_color = vec4(vec3(intensity, intensity * 0.5, intensity * 0.5) + illuminance * 0.25, 1.0) ; //light culling debug
-    // }
 
     //out_color = vec4(0.0, 0.0, 0.0, 1.0);
     //out_color[light_visiblities[tile_index].count] = 1.0;

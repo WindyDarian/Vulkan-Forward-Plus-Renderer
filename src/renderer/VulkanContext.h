@@ -16,7 +16,10 @@ public:
 	VulkanContext(GLFWwindow* window);
 	~VulkanContext();
 
+	int getDebugViewIndex() const;
+
 	void resize(int width, int height);
+	void changeDebugViewIndex(int target_view);
 	void requestDraw(float deltatime);
 	void cleanUp();
 

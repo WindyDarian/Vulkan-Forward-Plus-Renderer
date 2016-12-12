@@ -59,10 +59,12 @@ struct PushConstantObject
 {
 	glm::ivec2 viewport_size;
 	glm::ivec2 tile_nums;
+	int debugview_index; // TODO: separate this and only have it in debug mode?
 
-	PushConstantObject(int viewport_size_x, int viewport_size_y, int tile_num_x, int tile_num_y)
+	PushConstantObject(int viewport_size_x, int viewport_size_y, int tile_num_x, int tile_num_y, int debugview_index = 0)
 		: viewport_size(viewport_size_x, viewport_size_y),
-		tile_nums(tile_num_x, tile_num_y)
+		tile_nums(tile_num_x, tile_num_y),
+		debugview_index(debugview_index)
 	{}
 };
 
@@ -139,6 +141,20 @@ public:
 		, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo
 		, const VkAllocationCallbacks* pAllocator
 		, VkDebugReportCallbackEXT* pCallback);
+
+	int getDebugViewIndex() const
+	{
+		return debug_view_index;
+	}
+
+	/**
+	*  0: render 1: heat map with render 2: heat map 3: depth 4: normal
+	*/
+	void changeDebugViewIndex(int target_view)
+	{
+		debug_view_index = target_view % 5;
+		recreateSwapChain(); // TODO: change this to a state modification and handle the recreation before update
+	}
 
 private:
 	GLFWwindow* window;
@@ -262,6 +278,7 @@ private:
 	glm::vec3 cam_pos;
 	int tile_count_per_row;
 	int tile_count_per_col;
+	int debug_view_index = 0; 
 
 #ifdef NDEBUG
 	// if not debugging
@@ -1986,7 +2003,12 @@ void _VulkanContext_Impl::createGraphicsCommandBuffers()
 
 			vkCmdBeginRenderPass(command_buffers[i], &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
-			PushConstantObject pco = { static_cast<int>(swap_chain_extent.width), static_cast<int>(swap_chain_extent.height), tile_count_per_row, tile_count_per_col };
+			PushConstantObject pco = { 
+				static_cast<int>(swap_chain_extent.width), 
+				static_cast<int>(swap_chain_extent.height),
+				tile_count_per_row, tile_count_per_col,
+				debug_view_index
+			};
 			vkCmdPushConstants(command_buffers[i], pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pco), &pco);
 
 			vkCmdBindPipeline(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
@@ -2934,9 +2956,19 @@ VulkanContext::VulkanContext(GLFWwindow * window)
 
 VulkanContext::~VulkanContext() = default;
 
+int VulkanContext::getDebugViewIndex() const
+{
+	return p_impl->getDebugViewIndex();
+}
+
 void VulkanContext::resize(int width, int height)
 {
 	p_impl->resize(width, height);
+}
+
+void VulkanContext::changeDebugViewIndex(int target_view)
+{
+	p_impl->changeDebugViewIndex(target_view);
 }
 
 void VulkanContext::requestDraw(float deltatime)

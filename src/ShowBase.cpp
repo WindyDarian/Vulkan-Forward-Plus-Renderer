@@ -42,6 +42,8 @@ private:
 	bool d_down = false;
 	bool q_down = false;
 	bool e_down = false;
+	bool z_pressed = false;
+
 
 	GLFWwindow* createWindow()
 	{
@@ -153,13 +155,13 @@ private:
 		if (q_down)
 		{
 			// up
-			camera.position += camera.rotation  * util::vec_up * camera.move_speed * delta_time;
+			camera.position -= util::vec_up * camera.move_speed * delta_time;
 		}
 
 		if (e_down)
 		{
 			// down
-			camera.position -= camera.rotation  * util::vec_up * camera.move_speed * delta_time;
+			camera.position += util::vec_up * camera.move_speed * delta_time;
 		}
 	}
 
@@ -176,6 +178,12 @@ private:
 			delta_time = std::chrono::duration<float>(current - previous).count();
 
 			glfwPollEvents();
+
+			if (z_pressed) // change debug view
+			{
+				z_pressed = false;
+				context.changeDebugViewIndex(context.getDebugViewIndex() + 1);
+			}
 
 			if (delta_time >= MIN_DELTA_TIME) //prevent underflow
 			{
@@ -286,6 +294,8 @@ private:
 				case GLFW_KEY_E:
 					e_down = false;
 					break;
+				case GLFW_KEY_Z:
+					z_pressed = true;
 			}
 		}
 	}
