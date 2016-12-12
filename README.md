@@ -64,6 +64,9 @@ make
 #### References
 * [Vulkan Tutorial by Alexander Overvoorde](https://vulkan-tutorial.com)
 * [Correct Frustum Culling](http://www.iquilezles.org/www/articles/frustumcorrect/frustumcorrect.htm)
+* [Forward+: Bringing Deferred Rendering to the Next Level](https://takahiroharada.files.wordpress.com/2015/04/forward_plus.pdf)
+    * Takahiro Harada, Jay McKee, and Jason C. Yang
+* [EUROGRAPHICS 2012 Slide Deck](http://www.slideshare.net/takahiroharada/forward-34779335)
 
 #### Libraries
 * [CMake](https://cmake.org/)
