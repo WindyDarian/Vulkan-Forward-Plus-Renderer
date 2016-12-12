@@ -16,7 +16,7 @@ Members:
   * Shared descriptor sets for lights and camera to use compute pipeline output as fragment shader input.
     * Also used some push constants for the change of tile numbers after resizing window 
   * Tile frustum light culling
-  * Depth pre-pass
+  * Depth pre-pass (depth pre-pass + depth culling + light culling all done!)
 
 ### Milestone 2 (11/28/2016)
 * Forward+ framework in progress:
