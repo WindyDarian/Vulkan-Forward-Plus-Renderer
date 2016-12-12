@@ -2,10 +2,6 @@
 
 A Forward+ (tiled forward) rendering pipeline in Vulkan. A final project for __CIS565: GPU Programming__ at University of Pennsylvania
 
-WORK IN PROGRESS!
-
-No forward+ renderer is here yet, this project is just starting...
-
 Members:
 * [Ruoyu Fan](http://windy.moe/portfolio)
 * [Xueyin Wan](https://github.com/xueyinw)
