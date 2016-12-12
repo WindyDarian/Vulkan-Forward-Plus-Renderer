@@ -8,6 +8,16 @@ Members:
 
 ![](/screenshots/many_lights.jpg)
 
+## Description
+
+#### Controls
+
+```
+Pressing RMB and move cursor: rotate camera
+W, S, A, D, Q, E: move camera
+Z: toggle debug view
+```
+
 ## Milestones
 
 ### Milestone 3 (12/12/2016)
@@ -78,3 +88,6 @@ make
 #### Assets
 * [Chalet Hippolyte Chassande Baroz by Gaël](https://skfb.ly/HDVU)
 * [Sponza modeled by Marko Dabrovic](http://hdri.cgtechniques.com/~sponza/files/Sponza) (CIS565 simplified version) 
+
+#### Tools
+* [RenderDoc](https://github.com/baldurk/renderdoc)  (debugging became a lot easier)
