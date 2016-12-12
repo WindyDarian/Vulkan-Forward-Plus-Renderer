@@ -2,7 +2,7 @@
 
 **A final project for University of Pennsylvania, CIS 565: GPU Programming and Architecture**
 
-Forward+ (tiled forward) renderer in Vulkan using compute shader to do light culling. This implementation is __~700%__ faster than regular forward renderer (also in Vulkan) under the condition of 200 lights.
+Forward+ (tiled forward) rendering program in Vulkan using compute shader to do light culling. This implementation is __~700%__ faster than regular forward renderer (also in Vulkan) under the condition of 200 lights.
 
 Members:
 * [Ruoyu Fan](http://windy.moe/portfolio)
