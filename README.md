@@ -14,7 +14,7 @@ Members:
   * Shared descriptor sets for lights and camera to use compute pipeline output as fragment shader input.
     * Also used some push constants for the change of tile numbers after resizing window 
   * Light culling
-  
+  * Dive into depth :)
 ![](/screenshots/culling_1.jpg)
 
 ### Milestone 2 (11/28/2016)
