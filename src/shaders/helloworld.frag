@@ -110,9 +110,17 @@ void main()
         }
 	}
     
-    //out_color = vec4(vec3( pre_depth ),1.0);
+    // render view
     out_color = vec4(illuminance, 1.0); 
-    //out_color = vec4(vec3(float(light_visiblities[tile_index].count) / 64) + illuminance, 1.0) ; //light culling debug
+
+    // depth debug view
+    //out_color = vec4(vec3( pre_depth ),1.0);
+
+    // heat map debug view
+    // {
+    //     float intensity = float(light_visiblities[tile_index].count) / 32;
+    //     out_color = vec4(vec3(intensity, intensity * 0.5, intensity * 0.5) + illuminance * 0.25, 1.0) ; //light culling debug
+    // }
 
     //out_color = vec4(0.0, 0.0, 0.0, 1.0);
     //out_color[light_visiblities[tile_index].count] = 1.0;

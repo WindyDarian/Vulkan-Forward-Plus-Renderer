@@ -41,7 +41,7 @@ layout(std140, set = 1, binding = 0) buffer readonly CameraUbo // FIXME: change 
     vec3 cam_pos;
 } camera;
 
-layout(set = 2, binding = 0) uniform sampler2DShadow depth_sampler;
+layout(set = 2, binding = 0) uniform sampler2D depth_sampler;
 
 // vulkan ndc, minDepth = 0.0, maxDepth = 1.0
 const vec2 ndc_upper_left = vec2(-1.0, -1.0);
@@ -54,9 +54,17 @@ struct ViewFrustum
 	vec3 points[8]; // 0-3 near 4-7 far
 };
 
+layout(local_size_x = 32) in; 
+
+shared ViewFrustum frustum;
+shared uint light_count_for_tile;
+shared float min_depth;
+shared float max_depth;
+
 // Construct view frustum 
 ViewFrustum createFrustum(ivec2 tile_id)
 {
+
 	mat4 inv_projview = inverse(camera.projview); 
 
 	vec2 ndc_size_per_tile = 2.0 * vec2(TILE_SIZE, TILE_SIZE) / push_constants.viewport_size;
@@ -72,9 +80,9 @@ ViewFrustum createFrustum(ivec2 tile_id)
 	vec4 temp;
 	for (int i = 0; i < 4; i++)
 	{
-		temp = inv_projview * vec4(ndc_pts[i], ndc_near_plane, 1.0);
+		temp = inv_projview * vec4(ndc_pts[i], min_depth, 1.0);
 		frustum.points[i] = temp.xyz / temp.w;
-		temp = inv_projview * vec4(ndc_pts[i], ndc_far_plane, 1.0);
+		temp = inv_projview * vec4(ndc_pts[i], max_depth, 1.0);
 		frustum.points[i + 4] = temp.xyz / temp.w;
 	}
 
@@ -118,11 +126,6 @@ bool isCollided(PointLight light, ViewFrustum frustum)
 	return result;
 }
 
-layout(local_size_x = 32) in; 
-
-shared ViewFrustum frustum;
-shared uint light_count_for_tile;
-
 void main()
 {
 	ivec2 tile_id = ivec2(gl_WorkGroupID.xy);
@@ -132,9 +135,24 @@ void main()
 
 	if (gl_LocalInvocationIndex == 0) 
 	{
-		vec2 uv_tile_size = vec2(TILE_SIZE, TILE_SIZE) / push_constants.viewport_size;
-		vec2 tile_pos = tile_id * uv_tile_size;
-		
+		min_depth = 1.0;
+		max_depth = 0.0;
+
+		for (int y = 0; y < TILE_SIZE; y++)
+		{
+			for (int x = 0; x < TILE_SIZE; x++)
+			{
+				vec2 sample_loc = (vec2(TILE_SIZE, TILE_SIZE) * tile_id + vec2(x, y) ) / push_constants.viewport_size;
+				float pre_depth = texture(depth_sampler, sample_loc).x;
+				min_depth = min(min_depth, pre_depth);
+				max_depth = max(max_depth, pre_depth); //TODO: parallize this
+			}
+		}
+
+		if (min_depth >= max_depth)
+		{
+			min_depth = max_depth;
+		}
 
 		frustum = createFrustum(tile_id);
 		light_count_for_tile = 0;
