@@ -41,6 +41,8 @@ layout(std140, set = 1, binding = 0) buffer readonly CameraUbo // FIXME: change 
     vec3 cam_pos;
 } camera;
 
+layout(set = 2, binding = 0) uniform sampler2DShadow depth_sampler;
+
 // vulkan ndc, minDepth = 0.0, maxDepth = 1.0
 const vec2 ndc_upper_left = vec2(-1.0, -1.0);
 const float ndc_near_plane = 0.0;
@@ -130,6 +132,10 @@ void main()
 
 	if (gl_LocalInvocationIndex == 0) 
 	{
+		vec2 uv_tile_size = vec2(TILE_SIZE, TILE_SIZE) / push_constants.viewport_size;
+		vec2 tile_pos = tile_id * uv_tile_size;
+		
+
 		frustum = createFrustum(tile_id);
 		light_count_for_tile = 0;
 	}

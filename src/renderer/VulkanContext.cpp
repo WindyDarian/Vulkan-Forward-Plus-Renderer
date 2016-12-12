@@ -150,7 +150,7 @@ private:
 
 	VDeleter<VkDevice> graphics_device{ vkDestroyDevice }; //logical device
 	vk::Device device; // vulkan.hpp wraper for graphics_device, maybe I should migrate all code to vulkan-hpp
-	VkQueue graphics_queue;
+	vk::Queue graphics_queue;
 
 	VDeleter<VkSurfaceKHR> window_surface{ instance, vkDestroySurfaceKHR };
 	VkQueue present_queue;
@@ -176,7 +176,7 @@ private:
 	VRaii<vk::Pipeline> depth_pipeline;
 
 	VDeleter<VkDescriptorSetLayout> light_culling_descriptor_set_layout{ graphics_device, vkDestroyDescriptorSetLayout };  // shared between compute queue and graphics queue
-	VRaii<vk::DescriptorSetLayout> compute_descriptor_set_layout; // which is exclusive to compute queue
+	VRaii<vk::DescriptorSetLayout> intermediate_descriptor_set_layout; // which is exclusive to compute queue
 	VDeleter<VkPipelineLayout> compute_pipeline_layout{ graphics_device, vkDestroyPipelineLayout };
 	VDeleter<VkPipeline> compute_pipeline{ graphics_device, vkDestroyPipeline };
 	VDeleter<VkCommandPool> compute_command_pool{ graphics_device, vkDestroyCommandPool };
@@ -187,15 +187,21 @@ private:
 	// Command buffers
 	VDeleter<VkCommandPool> command_pool{ graphics_device, vkDestroyCommandPool };
 	std::vector<VkCommandBuffer> command_buffers; // buffers will be released when pool destroyed
+	vk::CommandBuffer depth_prepass_command_buffer;
 
 	VRaii<vk::Semaphore> image_available_semaphore;
 	VRaii<vk::Semaphore> render_finished_semaphore;
 	VRaii<vk::Semaphore> lightculling_completed_semaphore;
+	VRaii<vk::Semaphore> depth_prepass_finished_semaphore;
 
 	// only one image buffer for depth because only one draw operation happens at one time
 	VDeleter<VkImage> depth_image{ graphics_device, vkDestroyImage };
 	VDeleter<VkDeviceMemory> depth_image_memory{ graphics_device, vkFreeMemory };
 	VDeleter<VkImageView> depth_image_view{ graphics_device, vkDestroyImageView };
+	// for depth pre pass
+	VDeleter<VkImage> pre_pass_depth_image{ graphics_device, vkDestroyImage };
+	VDeleter<VkDeviceMemory> pre_pass_depth_image_memory{ graphics_device, vkFreeMemory };
+	VDeleter<VkImageView> pre_pass_depth_image_view{ graphics_device, vkDestroyImageView };
 
 	// texture image
 	VDeleter<VkImage> texture_image{ graphics_device, vkDestroyImage };
@@ -221,6 +227,7 @@ private:
 	VkDescriptorSet object_descriptor_set;
 	vk::DescriptorSet camera_descriptor_set;
 	VkDescriptorSet light_culling_descriptor_set;
+	vk::DescriptorSet intermediate_descriptor_set;
 
 	// vertex buffer
 	VDeleter<VkBuffer> vertex_buffer{ this->graphics_device, vkDestroyBuffer };
@@ -299,10 +306,13 @@ private:
 		createDescriptorPool();
 		createSceneObjectDescriptorSet();
 		createCameraDescriptorSet();
+		createIntermediateDescriptorSet();
+		updateIntermediateDescriptorSet();
 		createLigutCullingDescriptorSet();
 		createLightVisibilityBuffer(); // create a light visiblity buffer and update descriptor sets, need to rerun after changing size
-		createCommandBuffers();
+		createGraphicsCommandBuffers();
 		createLightCullingCommandBuffer();
+		createDepthPrePassCommandBuffer();
 		createSemaphores();
 	}
 
@@ -317,8 +327,10 @@ private:
 		createDepthResources();
 		createFrameBuffers();
 		createLightVisibilityBuffer(); // since it's size will scale with window;
-		createCommandBuffers();
+		updateIntermediateDescriptorSet();
+		createGraphicsCommandBuffers();
 		createLightCullingCommandBuffer(); // it needs light_visibility_buffer_size, which is changed on resize
+		createDepthPrePassCommandBuffer();
 	}
 
 	void createInstance();
@@ -344,13 +356,17 @@ private:
 	void createDescriptorPool();
 	void createSceneObjectDescriptorSet();
 	void createCameraDescriptorSet();
-	void createCommandBuffers();
+	void createIntermediateDescriptorSet();
+	void updateIntermediateDescriptorSet();
+	void createGraphicsCommandBuffers();
 	void createSemaphores();
 
 	void createComputePipeline();
 	void createLigutCullingDescriptorSet();
 	void createLightVisibilityBuffer();
 	void createLightCullingCommandBuffer();
+
+	void createDepthPrePassCommandBuffer();
 	
 	void updateUniformBuffers(float deltatime);
 	void drawFrame();
@@ -802,7 +818,7 @@ void _VulkanContext_Impl::createLogicalDevice()
 	}
 	device = graphics_device;
 
-	vkGetDeviceQueue(graphics_device, indices.graphics_family, 0, &graphics_queue);
+	graphics_queue = device.getQueue(indices.graphics_family, 0);
 	vkGetDeviceQueue(graphics_device, indices.present_family, 0, &present_queue);
 	compute_queue =	device.getQueue(indices.compute_family, 0);
 }
@@ -898,7 +914,7 @@ void _VulkanContext_Impl::createRenderPasses()
 		depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		depth_attachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-		depth_attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;  // to be read in compute shader?
+		depth_attachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;  // to be read in compute shader?
 
 		VkAttachmentReference depth_attachment_ref = {};
 		depth_attachment_ref.attachment = 0;
@@ -1114,15 +1130,15 @@ void _VulkanContext_Impl::createDescriptorSetLayouts()
 		}
 	}
 
-	// compute_descriptor_set_layout for light culling compute shader
+	// descriptor set layout for intermediate objects during render passes, such as z-buffer
 	{
 		// reads from depth attachment of previous frame
 		// descriptor for texture sampler
 		vk::DescriptorSetLayoutBinding sampler_layout_binding = {
-			1, // binding
+			0, // binding
 			vk::DescriptorType::eCombinedImageSampler, // descriptorType
 			1, // descriptoCount
-			vk::ShaderStageFlagBits::eCompute,  //stageFlags 
+			vk::ShaderStageFlagBits::eCompute | vk::ShaderStageFlagBits::eFragment ,  //stageFlags 
 			nullptr, // pImmutableSamplers
 		};
 
@@ -1132,7 +1148,7 @@ void _VulkanContext_Impl::createDescriptorSetLayouts()
 			&sampler_layout_binding,
 		};
 
-		compute_descriptor_set_layout = VRaii<vk::DescriptorSetLayout>(
+		intermediate_descriptor_set_layout = VRaii<vk::DescriptorSetLayout>(
 			device.createDescriptorSetLayout(create_info, nullptr),
 			[&device = this->device](auto & layout)
 			{
@@ -1280,8 +1296,8 @@ void _VulkanContext_Impl::createGraphicsPipelines()
 		// no uniform variables or push constants
 		VkPipelineLayoutCreateInfo pipeline_layout_info = {};
 		pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		VkDescriptorSetLayout set_layouts[] = { object_descriptor_set_layout, camera_descriptor_set_layout.get(), light_culling_descriptor_set_layout };
-		pipeline_layout_info.setLayoutCount = 3; // Optional
+		VkDescriptorSetLayout set_layouts[] = { object_descriptor_set_layout, camera_descriptor_set_layout.get(), light_culling_descriptor_set_layout, intermediate_descriptor_set_layout.get() };
+		pipeline_layout_info.setLayoutCount = 4; // Optional
 		pipeline_layout_info.pSetLayouts = set_layouts; // Optional
 		pipeline_layout_info.pushConstantRangeCount = 1; // Optional
 		pipeline_layout_info.pPushConstantRanges = &push_constant_range; // Optional
@@ -1415,7 +1431,7 @@ void _VulkanContext_Impl::createFrameBuffers()
 
 	// depth pass frame buffer
 	{
-		std::array<VkImageView, 1> attachments = { depth_image_view };
+		std::array<VkImageView, 1> attachments = { pre_pass_depth_image_view };
 
 		VkFramebufferCreateInfo framebuffer_info = {};
 		framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -1460,12 +1476,24 @@ void _VulkanContext_Impl::createDepthResources()
 	createImage(swap_chain_extent.width, swap_chain_extent.height
 		, depth_format
 		, VK_IMAGE_TILING_OPTIMAL
-		, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+		, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT 
 		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 		, &depth_image
 		, &depth_image_memory);
 	createImageView(depth_image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, &depth_image_view);
 	transitImageLayout(depth_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+
+	// for depth pre pass and output as texture
+	createImage(swap_chain_extent.width, swap_chain_extent.height
+		, depth_format
+		, VK_IMAGE_TILING_OPTIMAL
+		//, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT  // TODO: if creating another depth image for prepass use, use this only for rendering depth image
+		, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
+		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+		, &pre_pass_depth_image
+		, &pre_pass_depth_image_memory);
+	createImageView(pre_pass_depth_image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, &pre_pass_depth_image_view);
+	transitImageLayout(pre_pass_depth_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 }
 
 void _VulkanContext_Impl::createTextureAndNormal()
@@ -1499,7 +1527,7 @@ void _VulkanContext_Impl::createTextureSampler()
 	sampler_info.minLod = 0.0f;
 	sampler_info.maxLod = 0.0f;
 	
-
+	
 	if (vkCreateSampler(graphics_device, &sampler_info, nullptr, &texture_sampler) != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to create texture sampler!");
@@ -1634,7 +1662,7 @@ void _VulkanContext_Impl::createUniformBuffers()
 
 void _VulkanContext_Impl::createLights()
 {
-	for (int i = 0; i < 64; i++) {
+	for (int i = 0; i < 200; i++) {
 		glm::vec3 color;
 		do { color = { glm::linearRand(glm::vec3(0, 0, 0), glm::vec3(1, 1, 1)) }; } 
 		while (color.length() < 0.8f);
@@ -1669,7 +1697,7 @@ void _VulkanContext_Impl::createDescriptorPool()
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	pool_sizes[0].descriptorCount = 4; // transform buffer & light buffer & camera buffer & light buffer in compute pipeline
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	pool_sizes[1].descriptorCount = 2; // sampler for color map and normal map
+	pool_sizes[1].descriptorCount = 3; // sampler for color map and normal map and depth map from depth prepass
 	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	pool_sizes[2].descriptorCount = 3; // light visiblity buffer in graphics pipeline and compute pipeline
 
@@ -1677,7 +1705,7 @@ void _VulkanContext_Impl::createDescriptorPool()
 	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	pool_info.poolSizeCount = (uint32_t)pool_sizes.size();
 	pool_info.pPoolSizes = pool_sizes.data();
-	pool_info.maxSets = 3; // one for graphics pipeline and one for compute pipeline
+	pool_info.maxSets = 4; 
 	// TODO: one more in graphics pipeline for light visiblity
 	pool_info.flags = 0;
 	//poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
@@ -1802,7 +1830,112 @@ void _VulkanContext_Impl::createCameraDescriptorSet()
 	}
 }
 
-void _VulkanContext_Impl::createCommandBuffers()
+void _VulkanContext_Impl::createIntermediateDescriptorSet()
+{
+	// Create descriptor set
+	{
+		vk::DescriptorSetAllocateInfo alloc_info = {
+			descriptor_pool.get(),  // descriptorPool
+			1,  // descriptorSetCount
+			intermediate_descriptor_set_layout.data(), // pSetLayouts
+		};
+
+		intermediate_descriptor_set = device.allocateDescriptorSets(alloc_info)[0];
+	}
+
+}
+
+void _VulkanContext_Impl::updateIntermediateDescriptorSet()
+{
+	// Write desciptor set
+	
+		vk::DescriptorImageInfo depth_image_info = {
+			texture_sampler.get(),
+			pre_pass_depth_image_view.get(),
+			vk::ImageLayout::eShaderReadOnlyOptimal
+		};
+
+		std::vector<vk::WriteDescriptorSet> descriptor_writes = {};
+
+		descriptor_writes.emplace_back(
+			intermediate_descriptor_set, // dstSet
+			0, // dstBinding
+			0, // distArrayElement
+			1, // descriptorCount
+			vk::DescriptorType::eCombinedImageSampler, //descriptorType // FIXME: change back to uniform
+			&depth_image_info, //pImageInfo
+			nullptr, //pBufferInfo
+			nullptr //pTexBufferView
+		);
+
+		std::array<vk::CopyDescriptorSet, 0> descriptor_copies;
+		device.updateDescriptorSets(descriptor_writes, descriptor_copies);
+	
+}
+
+void _VulkanContext_Impl::createDepthPrePassCommandBuffer()
+{
+	if (depth_prepass_command_buffer)
+	{
+		device.freeCommandBuffers(command_pool.get(), 1, &depth_prepass_command_buffer);
+		depth_prepass_command_buffer = VK_NULL_HANDLE;
+	}
+
+	// Create depth pre-pass command buffer
+	{
+		vk::CommandBufferAllocateInfo alloc_info = {
+			command_pool.get(), // command pool
+			vk::CommandBufferLevel::ePrimary, // level
+			1 // commandBufferCount
+		};
+
+		depth_prepass_command_buffer = device.allocateCommandBuffers(alloc_info)[0];
+	}
+
+	// Begin command
+	{
+		vk::CommandBufferBeginInfo begin_info =
+		{
+			vk::CommandBufferUsageFlagBits::eSimultaneousUse,
+			nullptr
+		};
+
+		auto command = depth_prepass_command_buffer;
+
+		command.begin(begin_info);
+
+		std::array<vk::ClearValue, 1> clear_values = {};
+		clear_values[0].depthStencil = { 1.0f, 0 }; // 1.0 is far view plane
+		vk::RenderPassBeginInfo depth_pass_info = {
+			depth_pre_pass.get(),
+			depth_pre_pass_framebuffer.get(),
+			vk::Rect2D({ 0,0 }, swap_chain_extent),
+			static_cast<uint32_t>(clear_values.size()),
+			clear_values.data()
+		};
+		command.beginRenderPass(&depth_pass_info, vk::SubpassContents::eInline);
+		command.bindPipeline(vk::PipelineBindPoint::eGraphics, depth_pipeline.get());
+
+		std::array<vk::DescriptorSet, 2> depth_descriptor_sets = { object_descriptor_set, camera_descriptor_set };
+		std::array<uint32_t, 0> depth_dynamic_offsets;
+		command.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, depth_pipeline_layout.get(), 0, depth_descriptor_sets, depth_dynamic_offsets);
+
+		std::array<vk::Buffer, 1> depth_vertex_buffers = { vertex_buffer.get() };
+		std::array<vk::DeviceSize, 1> depth_offsets = { 0 };
+		command.bindVertexBuffers(0, depth_vertex_buffers, depth_offsets);
+		command.bindIndexBuffer(index_buffer.get(), 0, vk::IndexType::eUint32);
+
+		command.drawIndexed(static_cast<uint32_t>(vertex_indices.size()), 1, 0, 0, 0);
+
+		command.endRenderPass();
+
+		command.end();
+
+	}
+
+}
+
+void _VulkanContext_Impl::createGraphicsCommandBuffers()
 {
 	// Free old command buffers, if any
 	if (command_buffers.size() > 0)
@@ -1836,36 +1969,7 @@ void _VulkanContext_Impl::createCommandBuffers()
 
 		vkBeginCommandBuffer(command_buffers[i], &begin_info);
 
-		// depth pre-pass
-		{	
-			auto command = static_cast<vk::CommandBuffer>(command_buffers[i]);
-			std::array<vk::ClearValue, 1> clear_values = {};
-			clear_values[0].depthStencil = { 1.0f, 0 }; // 1.0 is far view plane
-			vk::RenderPassBeginInfo depth_pass_info = {
-				depth_pre_pass.get(),
-				depth_pre_pass_framebuffer.get(),
-				vk::Rect2D({ 0,0 }, swap_chain_extent),
-				static_cast<uint32_t>(clear_values.size()),
-				clear_values.data()
-			};
-			command.beginRenderPass(&depth_pass_info, vk::SubpassContents::eInline);
-			command.bindPipeline(vk::PipelineBindPoint::eGraphics, depth_pipeline.get());
-
-			std::array<vk::DescriptorSet, 2> depth_descriptor_sets = { object_descriptor_set, camera_descriptor_set };
-			std::array<uint32_t, 0> depth_dynamic_offsets;
-			command.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, depth_pipeline_layout.get(), 0, depth_descriptor_sets, depth_dynamic_offsets);
-
-			std::array<vk::Buffer, 1> depth_vertex_buffers = {vertex_buffer.get()};
-			std::array<vk::DeviceSize, 1> depth_offsets = {0};
-			command.bindVertexBuffers(0, depth_vertex_buffers, depth_offsets);
-			command.bindIndexBuffer(index_buffer.get(), 0, vk::IndexType::eUint32);
-
-			command.drawIndexed(static_cast<uint32_t>(vertex_indices.size()), 1, 0, 0, 0);
-
-			command.endRenderPass();
-		}
-
-		// final render pass
+		// render pass
 		{
 			VkRenderPassBeginInfo render_pass_info = {};
 			render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -1894,7 +1998,7 @@ void _VulkanContext_Impl::createCommandBuffers()
 			//vkCmdBindIndexBuffer(command_buffers[i], index_buffer, 0, VK_INDEX_TYPE_UINT16);
 			vkCmdBindIndexBuffer(command_buffers[i], index_buffer, 0, VK_INDEX_TYPE_UINT32);
 
-			std::array<VkDescriptorSet, 3> descriptor_sets = { object_descriptor_set, camera_descriptor_set, light_culling_descriptor_set };
+			std::array<VkDescriptorSet, 4> descriptor_sets = { object_descriptor_set, camera_descriptor_set, light_culling_descriptor_set, intermediate_descriptor_set };
 			vkCmdBindDescriptorSets(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS
 				, pipeline_layout, 0, static_cast<uint32_t>(descriptor_sets.size()), descriptor_sets.data(), 0, nullptr);
 			// TODO: better to store vertex buffer and index buffer in a single VkBuffer
@@ -1904,6 +2008,8 @@ void _VulkanContext_Impl::createCommandBuffers()
 			vkCmdDrawIndexed(command_buffers[i], (uint32_t)vertex_indices.size(), 1, 0, 0, 0);
 
 			vkCmdEndRenderPass(command_buffers[i]);
+			recordTransitImageLayout(command_buffers[i], pre_pass_depth_image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+
 		}
 
 		auto record_result = vkEndCommandBuffer(command_buffers[i]);
@@ -1935,6 +2041,10 @@ void _VulkanContext_Impl::createSemaphores()
 		device.createSemaphore(semaphore_info, nullptr), 
 		destroy_func
 	);
+	depth_prepass_finished_semaphore = VRaii<vk::Semaphore>(
+		device.createSemaphore(semaphore_info, nullptr),
+		destroy_func
+	);
 }
 
 
@@ -1955,7 +2065,7 @@ void _VulkanContext_Impl::createComputePipeline()
 
 		VkPipelineLayoutCreateInfo pipeline_layout_info = {};
 		pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		std::array<VkDescriptorSetLayout, 2> set_layouts = { light_culling_descriptor_set_layout, camera_descriptor_set_layout.get()};
+		std::array<VkDescriptorSetLayout, 3> set_layouts = { light_culling_descriptor_set_layout, camera_descriptor_set_layout.get(), intermediate_descriptor_set_layout.get()};
 		pipeline_layout_info.setLayoutCount = static_cast<int>(set_layouts.size()); 
 		pipeline_layout_info.pSetLayouts = set_layouts.data(); 
 		pipeline_layout_info.pushConstantRangeCount = 1; 
@@ -1999,7 +2109,7 @@ void _VulkanContext_Impl::createComputePipeline()
 */
 void _VulkanContext_Impl::createLigutCullingDescriptorSet()
 {
-	// create dercriptor set in command pipeline
+	// create shared dercriptor set between compute pipeline and rendering pipeline
 	{	
 		// todo: reduce code duplication with createDescriptorSet() 
 		VkDescriptorSetLayout layouts[] = { light_culling_descriptor_set_layout };
@@ -2011,6 +2121,7 @@ void _VulkanContext_Impl::createLigutCullingDescriptorSet()
 
 		light_culling_descriptor_set = device.allocateDescriptorSets(alloc_info)[0];
 	}
+
 }
 
 // just for sizing information
@@ -2155,12 +2266,13 @@ void _VulkanContext_Impl::createLightCullingCommandBuffer()
 			nullptr // pImageMemoryBarriers
 		);
 
+
 		// barrier
 		command.bindDescriptorSets(
 			vk::PipelineBindPoint::eCompute, // pipelineBindPoint
 			compute_pipeline_layout.get(), // layout
 			0, // firstSet
-			std::array<vk::DescriptorSet, 2>{light_culling_descriptor_set, camera_descriptor_set}, // descriptorSets
+			std::array<vk::DescriptorSet, 3>{light_culling_descriptor_set, camera_descriptor_set, intermediate_descriptor_set}, // descriptorSets
 			std::array<uint32_t, 0>() // pDynamicOffsets
 		); 
 
@@ -2169,6 +2281,7 @@ void _VulkanContext_Impl::createLightCullingCommandBuffer()
 
 		command.bindPipeline(vk::PipelineBindPoint::eCompute, static_cast<VkPipeline>(compute_pipeline));
 		command.dispatch(tile_count_per_row, tile_count_per_col, 1);
+
 
 		std::vector<vk::BufferMemoryBarrier> barriers_after;
 		barriers_after.emplace_back
@@ -2204,6 +2317,8 @@ void _VulkanContext_Impl::createLightCullingCommandBuffer()
 		command.end();
 	}
 }
+
+
 
 void _VulkanContext_Impl::updateUniformBuffers(float deltatime)
 {
@@ -2274,12 +2389,28 @@ void _VulkanContext_Impl::drawFrame()
 		}
 	}
 
-	// submit light culling command buffer
+	// submit depth pre-pass command buffer
 	{
 		vk::SubmitInfo submit_info = {
 			0, // waitSemaphoreCount
 			nullptr, // pWaitSemaphores
 			nullptr, // pwaitDstStageMask
+			1, // commandBufferCount
+			&depth_prepass_command_buffer, // pCommandBuffers
+			1, // singalSemaphoreCount
+			depth_prepass_finished_semaphore.data() // pSingalSemaphores
+		};
+		graphics_queue.submit(1, &submit_info, VK_NULL_HANDLE);
+	}
+
+	// submit light culling command buffer
+	{
+		vk::Semaphore wait_semaphores[] = { depth_prepass_finished_semaphore.get() }; // which semaphore to wait
+		vk::PipelineStageFlags wait_stages[] = { vk::PipelineStageFlagBits::eComputeShader }; // which stage to execute
+		vk::SubmitInfo submit_info = {
+			1, // waitSemaphoreCount
+			wait_semaphores, // pWaitSemaphores
+			wait_stages, // pwaitDstStageMask
 			1, // commandBufferCount
 			&light_culling_command_buffer, // pCommandBuffers
 			1, // singalSemaphoreCount
@@ -2725,7 +2856,7 @@ void _VulkanContext_Impl::recordTransitImageLayout(VkCommandBuffer command_buffe
 	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 	barrier.oldLayout = old_layout;
 	barrier.newLayout = new_layout;
-	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;  //TODO: when converting the depth attachment for depth pre pass this is not correct
 	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	barrier.image = image;
 
@@ -2769,6 +2900,17 @@ void _VulkanContext_Impl::recordTransitImageLayout(VkCommandBuffer command_buffe
 	{
 		barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
 			| VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	}
+	else if (old_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+	{
+		barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
+			| VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+	}
+	else if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+	{
+		barrier.srcAccessMask = 0;
 		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 	}
 	else
