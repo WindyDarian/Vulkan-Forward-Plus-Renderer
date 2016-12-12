@@ -62,9 +62,9 @@ ViewFrustum createFrustum(ivec2 tile_id)
 	vec2 ndc_pts[4];  // corners of tile in ndc
 	ndc_pts[0] = ndc_upper_left + tile_id * ndc_size_per_tile;  // upper left
 	ndc_pts[1] = vec2(ndc_pts[0].x + ndc_size_per_tile.x, ndc_pts[0].y); // upper right
-	ndc_pts[2] = vec2(ndc_pts[0].x, ndc_pts[0].y + ndc_size_per_tile.y); // lower left
-	ndc_pts[3] = ndc_pts[0] + ndc_size_per_tile;
-	
+	ndc_pts[2] = ndc_pts[0] + ndc_size_per_tile;
+	ndc_pts[3] = vec2(ndc_pts[0].x, ndc_pts[0].y + ndc_size_per_tile.y); // lower left
+
 	ViewFrustum frustum;
 	
 	vec4 temp;
@@ -82,16 +82,19 @@ ViewFrustum createFrustum(ivec2 tile_id)
 		//Cax+Cby+Ccz+Cd = 0, planes[i] = (Ca, Cb, Cc, Cd)
 		// temp_normal: normal without normalization
 		temp_normal = cross(frustum.points[i] - camera.cam_pos, frustum.points[i + 1] - camera.cam_pos); 
+		temp_normal = normalize(temp_normal);
 		frustum.planes[i] = vec4(temp_normal, - dot(temp_normal, frustum.points[i]));
 	}
 	// near plane
 	{
 		temp_normal = cross(frustum.points[1] - frustum.points[0], frustum.points[3] - frustum.points[0]); 
+		temp_normal = normalize(temp_normal);
 		frustum.planes[4] = vec4(temp_normal, - dot(temp_normal, frustum.points[0]));
 	}
 	// far plane
 	{
 		temp_normal = cross(frustum.points[7] - frustum.points[4], frustum.points[5] - frustum.points[4]); 
+		temp_normal = normalize(temp_normal);
 		frustum.planes[5] = vec4(temp_normal, - dot(temp_normal, frustum.points[4]));
 	}
 
@@ -100,35 +103,17 @@ ViewFrustum createFrustum(ivec2 tile_id)
 
 bool isCollided(PointLight light, ViewFrustum frustum)
 {
-	vec3 light_bbox_max = light.pos + vec3(light.radius);
-	vec3 light_bbox_min = light.pos - vec3(light.radius);
+	bool result = true;
 
-	// ref: http://www.iquilezles.org/www/articles/frustumcorrect/frustumcorrect.htm
-	// check box outside/inside of frustum
-    for(int i=0; i<6; i++)
-    {
-        int probe = 0;
-        probe += ((dot( frustum.planes[i], vec4(light_bbox_min.x, light_bbox_min.y, light_bbox_min.z, 1.0) ) < 0.0 )?1:0);
-        probe += ((dot( frustum.planes[i], vec4(light_bbox_max.x, light_bbox_min.y, light_bbox_min.z, 1.0) ) < 0.0 )?1:0);
-        probe += ((dot( frustum.planes[i], vec4(light_bbox_min.x, light_bbox_max.y, light_bbox_min.z, 1.0) ) < 0.0 )?1:0);
-        probe += ((dot( frustum.planes[i], vec4(light_bbox_max.x, light_bbox_max.y, light_bbox_min.z, 1.0) ) < 0.0 )?1:0);
-        probe += ((dot( frustum.planes[i], vec4(light_bbox_min.x, light_bbox_min.y, light_bbox_max.z, 1.0) ) < 0.0 )?1:0);
-        probe += ((dot( frustum.planes[i], vec4(light_bbox_max.x, light_bbox_min.y, light_bbox_max.z, 1.0) ) < 0.0 )?1:0);
-        probe += ((dot( frustum.planes[i], vec4(light_bbox_min.x, light_bbox_max.y, light_bbox_max.z, 1.0) ) < 0.0 )?1:0);
-        probe += ((dot( frustum.planes[i], vec4(light_bbox_max.x, light_bbox_max.y, light_bbox_max.z, 1.0) ) < 0.0 )?1:0);
-        if( probe ==8 ) return false;
-    }
-
-	// check frustum outside/inside box
-    int probe;
-    probe=0; for( int i=0; i<8; i++ ) probe += ((frustum.points[i].x > light_bbox_max.x)?1:0); if( probe==8 ) return false;
-    probe=0; for( int i=0; i<8; i++ ) probe += ((frustum.points[i].x < light_bbox_min.x)?1:0); if( probe==8 ) return false;
-    probe=0; for( int i=0; i<8; i++ ) probe += ((frustum.points[i].y > light_bbox_max.y)?1:0); if( probe==8 ) return false;
-    probe=0; for( int i=0; i<8; i++ ) probe += ((frustum.points[i].y < light_bbox_min.y)?1:0); if( probe==8 ) return false;
-    probe=0; for( int i=0; i<8; i++ ) probe += ((frustum.points[i].z > light_bbox_max.z)?1:0); if( probe==8 ) return false;
-    probe=0; for( int i=0; i<8; i++ ) probe += ((frustum.points[i].z < light_bbox_min.z)?1:0); if( probe==8 ) return false;
-
-    return true;
+	for (int i = 0; i < 6; i++) 
+	{
+		if (dot(light.pos, frustum.planes[i].xyz) + frustum.planes[i].w  < - light.radius ) 
+		{
+			result = false;
+			break;
+		}
+	}
+	return result;
 }
 
 layout(local_size_x = 32) in; 

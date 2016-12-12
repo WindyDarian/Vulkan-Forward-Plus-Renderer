@@ -1634,7 +1634,7 @@ void _VulkanContext_Impl::createUniformBuffers()
 
 void _VulkanContext_Impl::createLights()
 {
-	for (int i = 0; i < 200; i++) {
+	for (int i = 0; i < 64; i++) {
 		glm::vec3 color;
 		do { color = { glm::linearRand(glm::vec3(0, 0, 0), glm::vec3(1, 1, 1)) }; } 
 		while (color.length() < 0.8f);

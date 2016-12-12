@@ -101,8 +101,8 @@ void main()
         }
 	}
     
-    out_color = vec4(illuminance, 1.0); 
-    //out_color = vec4(vec3(float(light_visiblities[tile_index].count) / 32) + illuminance, 1.0) ; //light culling debug
+    //out_color = vec4(illuminance, 1.0); 
+    out_color = vec4(vec3(float(light_visiblities[tile_index].count) / 64) + illuminance, 1.0) ; //light culling debug
 
     //out_color = vec4(0.0, 0.0, 0.0, 1.0);
     //out_color[light_visiblities[tile_index].count] = 1.0;
