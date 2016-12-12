@@ -10,25 +10,6 @@
 
 #include <vector>
 
-// TODO: now the scene is just a low level struct... once renderer is basically finished 
-//       and we start working on scene management there should be a higher level scene class
-//      (and there should be some change in dependency relationship.... or just leave this Scene stuct as some RenderableScene)
-
-struct PointLight
-{
-public:
-	//glm::vec3 pos = { 0.0f, 1.0f, 0.0f };
-	glm::vec3 pos;
-	float radius = { 5.0f };
-	glm::vec3 intensity = { 1.0f, 1.0f, 1.0f };
-	float padding;
-
-	PointLight() {}
-	PointLight(glm::vec3 pos, float radius, glm::vec3 intensity)
-		: pos(pos), radius(radius), intensity(intensity)
-	{};
-};
-
 struct Camera
 {
 public:
@@ -46,10 +27,4 @@ public:
 		// return glm::inverse(glm::translate(glm::toMat4(rotation), position));
 		return glm::transpose(glm::toMat4(rotation)) * glm::translate(glm::mat4(1.0f), -position); // equal to inv(TR) 
 	}
-};
-
-struct Scene
-{
-	std::vector<PointLight> point_lights{ PointLight() }; // just one light for test
-	Camera camera;
 };

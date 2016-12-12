@@ -11,9 +11,6 @@
 #include "../util.h"
 #include "vulkan_util.h"
 
-// TODO: DELETE ME
-#include "../Scene.h"
-
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/random.hpp>
@@ -39,6 +36,22 @@ using util::Vertex;
 const int MAX_POINT_LIGHT_COUNT = 1000;
 const int MAX_POINT_LIGHT_PER_TILE = 63;
 const int TILE_SIZE = 16;
+
+struct PointLight
+{
+public:
+	//glm::vec3 pos = { 0.0f, 1.0f, 0.0f };
+	glm::vec3 pos;
+	float radius = { 5.0f };
+	glm::vec3 intensity = { 1.0f, 1.0f, 1.0f };
+	float padding;
+
+	PointLight() {}
+	PointLight(glm::vec3 pos, float radius, glm::vec3 intensity)
+		: pos(pos), radius(radius), intensity(intensity)
+	{};
+};
+
 
 // uniform buffer object for model transformation
 struct SceneObjectUbo

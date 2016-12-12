@@ -1,6 +1,8 @@
-# VFPR - a Vulkan Forward+ Renderer using compute shader
+# VFPR - a Vulkan Forward Plus Renderer
 
-A Forward+ (tiled forward) rendering pipeline in Vulkan. A final project for __CIS565: GPU Programming__ at University of Pennsylvania
+**A final project for University of Pennsylvania, CIS 565: GPU Programming and Architecture**
+
+Forward+ (tiled forward) renderer in Vulkan using compute shader to do light culling. This implementation is __~700%__ faster than regular forward renderer (also in Vulkan) under the condition of 200 lights.
 
 Members:
 * [Ruoyu Fan](http://windy.moe/portfolio)
