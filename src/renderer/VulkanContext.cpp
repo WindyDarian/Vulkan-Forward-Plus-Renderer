@@ -1044,6 +1044,11 @@ void _VulkanContext_Impl::createDescriptorSetLayouts()
 			throw std::runtime_error("Unable to create descriptor layout for command queue!");
 		}
 	}
+
+	// todo
+	{
+
+	}
 }
 
 

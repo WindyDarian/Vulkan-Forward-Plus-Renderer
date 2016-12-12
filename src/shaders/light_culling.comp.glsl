@@ -1,6 +1,5 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
-#extension GL_ARB_shading_language_420pack : enable
 
 const int TILE_SIZE = 16; // TODO: maybe I can use push constant?
 
@@ -11,7 +10,6 @@ struct PointLight {
 };
 
 #define MAX_POINT_LIGHT_PER_TILE 63
-
 struct LightVisiblity
 {
 	uint count;
@@ -64,7 +62,7 @@ ViewFrustum createFrustum(ivec2 tile_id)
 	vec2 ndc_pts[4];  // corners of tile in ndc
 	ndc_pts[0] = ndc_upper_left + tile_id * ndc_size_per_tile;  // upper left
 	ndc_pts[1] = vec2(ndc_pts[0].x + ndc_size_per_tile.x, ndc_pts[0].y); // upper right
-	ndc_pts[2] = vec2(ndc_pts[0].x, ndc_pts[0].y + ndc_size_per_tile.x); // lower left
+	ndc_pts[2] = vec2(ndc_pts[0].x, ndc_pts[0].y + ndc_size_per_tile.y); // lower left
 	ndc_pts[3] = ndc_pts[0] + ndc_size_per_tile;
 	
 	ViewFrustum frustum;
@@ -133,19 +131,17 @@ bool isCollided(PointLight light, ViewFrustum frustum)
     return true;
 }
 
-layout(local_size_x = 32) in; //TODO
+layout(local_size_x = 32) in; 
 
 shared ViewFrustum frustum;
 shared uint light_count_for_tile;
 
 void main()
 {
-    // wild work in progress!
 	ivec2 tile_id = ivec2(gl_WorkGroupID.xy);
-	//ivec2 tile_nums = ivec2(gl_NumWorkGroups.xy);
 	uint tile_index = tile_id.y * push_constants.tile_nums.x + tile_id.x;
 
-	// TODO: depth culling??? (do i need to read depth output of vertex shader?????)
+	// TODO: depth culling??? 
 
 	if (gl_LocalInvocationIndex == 0) 
 	{
@@ -169,6 +165,6 @@ void main()
 
 	if (gl_LocalInvocationIndex == 0) 
 	{
-		light_visiblities[tile_index].count = max(MAX_POINT_LIGHT_PER_TILE, light_count_for_tile);
+		light_visiblities[tile_index].count = min(MAX_POINT_LIGHT_PER_TILE, light_count_for_tile);
 	}
 }
