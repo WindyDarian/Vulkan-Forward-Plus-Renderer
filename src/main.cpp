@@ -25,5 +25,7 @@ int main()
 
 		result = EXIT_FAILURE;
 	} 
+
+	//system("pause");
 	return result;
 }

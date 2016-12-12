@@ -58,7 +58,7 @@ private:
 			glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 		}
 
-		auto window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Vulkan Hello World", nullptr, nullptr);
+		auto window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "VFPR - Vulkan Forward+ Renderer", nullptr, nullptr);
 		
 		glfwSetWindowUserPointer(window, this);
 	

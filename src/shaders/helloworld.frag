@@ -47,6 +47,8 @@ layout(std140, set = 2, binding = 1) buffer readonly PointLights // FIXME: chang
 	PointLight pointlights[1000];
 };
 
+layout(set = 3, binding = 0) uniform sampler2D depth_sampler;
+
 layout(location = 0) in vec3 frag_color;
 layout(location = 1) in vec2 frag_tex_coord;
 layout(location = 2) in vec3 frag_normal;
@@ -67,6 +69,13 @@ vec3 applyNormalMap(vec3 geomnor, vec3 normap)
 
 void main()
 {
+    float pre_depth = texture(depth_sampler, (gl_FragCoord.xy/push_constants.viewport_size) ).x;
+    if (gl_FragCoord.z > pre_depth + 0.0001)
+    {
+        out_color = vec4(0.0);
+        return;
+    }
+
     vec4 color_map =  texture(tex_sampler, frag_tex_coord);
     vec3 diffuse = color_map.rgb;
     vec3 illuminance = vec3(0.0);
@@ -101,8 +110,17 @@ void main()
         }
 	}
     
+    // render view
     out_color = vec4(illuminance, 1.0); 
-    //out_color = vec4(vec3(float(light_visiblities[tile_index].count) / 32) + illuminance, 1.0) ; //light culling debug
+
+    // depth debug view
+    //out_color = vec4(vec3( pre_depth ),1.0);
+
+    // heat map debug view
+    // {
+    //     float intensity = float(light_visiblities[tile_index].count) / 32;
+    //     out_color = vec4(vec3(intensity, intensity * 0.5, intensity * 0.5) + illuminance * 0.25, 1.0) ; //light culling debug
+    // }
 
     //out_color = vec4(0.0, 0.0, 0.0, 1.0);
     //out_color[light_visiblities[tile_index].count] = 1.0;

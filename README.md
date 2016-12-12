@@ -6,6 +6,8 @@ Members:
 * [Ruoyu Fan](http://windy.moe/portfolio)
 * [Xueyin Wan](https://github.com/xueyinw)
 
+![](/screenshots/many_lights.jpg)
+
 ## Milestones
 
 ### Milestone 3 (12/12/2016)
@@ -13,9 +15,8 @@ Members:
   * Compute pipeline
   * Shared descriptor sets for lights and camera to use compute pipeline output as fragment shader input.
     * Also used some push constants for the change of tile numbers after resizing window 
-  * Light culling
-  * Dive into depth :)
-![](/screenshots/culling_1.jpg)
+  * Tile frustum light culling
+  * Depth pre-pass
 
 ### Milestone 2 (11/28/2016)
 * Forward+ framework in progress:
@@ -24,8 +25,6 @@ Members:
   * Normal mapping
   * Blinn-Phong Shading
 
-![](/screenshots/blinn-phong_and_normal_mapping.jpg)
-
 ### Milestone 1 (11/21/2016)
 * Basic Vulkan framework including:
   * basic forward rendering pipeline (adaptd from [Vulkan Tutorial by Alexander Overvoorde](https://vulkan-tutorial.com))
@@ -33,7 +32,6 @@ Members:
   * texture mapping
   * lambert shading
 
-![](/screenshots/lambertian.jpg)
 
 ## How to Build
 
