@@ -8,9 +8,26 @@ Members:
 * [Ruoyu Fan](http://windy.moe/portfolio)
 * [Xueyin Wan](https://github.com/xueyinw)
 
-![](/screenshots/many_lights.jpg)
+TODO: video
+
+| Render           | Heatmap          |
+|------------------|------------------|
+| ![](screenshots/render.jpg) | ![](screenshots/heatmap.jpg) |
+
+| Heatmap Only     | Depth Pre-Pass Result |
+|------------------|------------------|
+| ![](screenshots/heatmap2.jpg) | ![](screenshots/depth.jpg) |
 
 ## Description
+
+TODO
+
+#### Frame Breakdown
+![](documents/frame_breakdown.png)
+
+![](documents/renderdoc_frame_breakdown.jpg)
+
+TODO
 
 #### Controls
 
