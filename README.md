@@ -11,7 +11,7 @@ Members:
 ## Milestones
 
 ### Milestone 3 (12/12/2016)
-* (TODO:) Forward+ pipeline:
+* Forward+ pipeline:
   * Compute pipeline
   * Shared descriptor sets for lights and camera to use compute pipeline output as fragment shader input.
     * Also used some push constants for the change of tile numbers after resizing window 
