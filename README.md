@@ -46,11 +46,12 @@ Z: toggle debug view
     * Also used some push constants for the change of tile numbers after resizing window 
   * Tile frustum light culling
   * Depth pre-pass (depth pre-pass + depth culling + light culling all done!)
-
+  * Switch between debug views (HeatMap, Normals, Depth map, etc.)
+ 
 ### Milestone 2 (11/28/2016)
 * Forward+ framework in progress:
   * Camera control
-  * Point lights
+  * Huge amount of Point lights
   * Normal mapping
   * Blinn-Phong Shading
 
@@ -60,7 +61,7 @@ Z: toggle debug view
   * mesh
   * texture mapping
   * lambert shading
-
+* Cross Platform using GLFW & CMake (Windows, Linux) 
 
 ## How to Build
 
