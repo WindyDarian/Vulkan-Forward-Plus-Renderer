@@ -1208,7 +1208,7 @@ void _VulkanRenderer_Impl::createUniformBuffers()
 	// Adding data to scene object buffer
 	{
 		SceneObjectUbo ubo = {};
-		ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(0.1f));;
+		ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(0.01f));;
 
 		void* data;
 		vkMapMemory(graphics_device, object_staging_buffer_memory.get(), 0, sizeof(ubo), 0, &data);
