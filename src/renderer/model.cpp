@@ -20,12 +20,16 @@ namespace std {
 	};
 }
 
-std::tuple<std::vector<util::Vertex>, std::vector<util::Vertex::index_t>> loadModel(const std::string& path)
+struct MeshMaterialGroup // grouped by material
+{
+	
+};
+
+void loadModel(const std::string& path)
 {
 	using util::Vertex;
 
-	// TODO: I need a normal index for flat shading models
-	std::vector<Vertex> vertices;
+	std::vector<util::Vertex> vertices; 
 	std::vector<util::Vertex::index_t> vertex_indices;
 
 	tinyobj::attrib_t attrib;
@@ -37,7 +41,6 @@ std::tuple<std::vector<util::Vertex>, std::vector<util::Vertex::index_t>> loadMo
 	{
 		throw std::runtime_error(err);
 	}
-
 	bool has_vertex_normal = attrib.normals.size() > 0;
 
 	std::unordered_map<Vertex, size_t> unique_vertices = {};
@@ -101,13 +104,13 @@ std::tuple<std::vector<util::Vertex>, std::vector<util::Vertex::index_t>> loadMo
 			}
 		}
 	}
-
-	return std::make_tuple(std::move(vertices), std::move(vertex_indices));
 }
 
 VModel VModel::loadModelFromFile(vk::Device device_handle, const std::string & path)
 {
-
+	VModel model;
+	
+	//std::vector<util::Vertex> vertices, std::vector<util::Vertex::index_t> vertex_indices;
 
 	return VModel();
 }
