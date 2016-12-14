@@ -39,7 +39,7 @@ VContext::VContext(GLFWwindow* window)
 
 VContext::~VContext() = default;
 
-std::pair<int, int> VContext::getWindowFrameBufferSize()
+std::pair<int, int> VContext::getWindowFrameBufferSize() const
 {
 	int framebuffer_width, framebuffer_height;
 	glfwGetFramebufferSize(window, &framebuffer_width, &framebuffer_height);
@@ -447,6 +447,49 @@ void VContext::createLogicalDevice()
 	graphics_queue = device.getQueue(indices.graphics_family, 0);
 	present_queue = device.getQueue(indices.present_family, 0);
 	compute_queue = device.getQueue(indices.compute_family, 0);
+}
+
+void VContext::createCommandPools()
+{
+	auto device = graphics_device.get();
+	auto raii_commandpool_deleter = [device = device](auto& obj)
+	{
+		device.destroyCommandPool(obj);
+	};
+
+	auto& indices = queue_family_indices;
+
+	// graphics_queue_command_pool
+	{
+		VkCommandPoolCreateInfo pool_info = {};
+		pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+		pool_info.queueFamilyIndex = indices.graphics_family;
+		pool_info.flags = 0; // Optional
+								// hint the command pool will rerecord buffers by VK_COMMAND_POOL_CREATE_TRANSIENT_BIT
+								// allow buffers to be rerecorded individually by VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
+
+
+
+		graphics_queue_command_pool = VRaii<vk::CommandPool>(
+			device.createCommandPool(pool_info, nullptr),
+			raii_commandpool_deleter
+		);
+	}
+	
+	// compute_queue_command_pool
+	{
+		VkCommandPoolCreateInfo cmd_pool_info = {};
+		cmd_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+		cmd_pool_info.queueFamilyIndex = indices.compute_family;
+		cmd_pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+
+
+		compute_queue_command_pool = VRaii<vk::CommandPool>(
+			device.createCommandPool(cmd_pool_info, nullptr),
+			raii_commandpool_deleter
+		);
+	}
+
 }
 
 SwapChainSupportDetails SwapChainSupportDetails::querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface)

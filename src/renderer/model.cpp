@@ -24,18 +24,16 @@ namespace std {
 
 struct MeshMaterialGroup // grouped by material
 {
-	std::vector<util::Vertex> vertices;
-	std::vector<util::Vertex::index_t> vertex_indices;
+	std::vector<util::Vertex> vertices = {};
+	std::vector<util::Vertex::index_t> vertex_indices = {};
+	
 	std::string albedo_map_path = "";
 	std::string normal_map_path = "";
 };
 
-void loadModel(const std::string& path)
+MeshMaterialGroup loadModel(const std::string& path)
 {
 	using util::Vertex;
-
-	std::vector<util::Vertex> vertices; 
-	std::vector<util::Vertex::index_t> vertex_indices;
 
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
@@ -47,9 +45,14 @@ void loadModel(const std::string& path)
 		throw std::runtime_error(err);
 	}
 	bool has_vertex_normal = attrib.normals.size() > 0;
+	assert(has_vertex_normal);
 
-	std::unordered_map<Vertex, size_t> unique_vertices = {};
-	auto append_vertex = [&vertices, &vertex_indices, &unique_vertices](const Vertex& vertex)
+	//std::vector<MeshMaterialGroup> groups(materials.size()); // group parts of the same material together
+
+	MeshMaterialGroup temp_group = {};
+	std::vector<std::unordered_map <util::Vertex, size_t >> unique_vertices_per_group(1);
+
+	auto append_vertex = [&vertices = temp_group.vertices, &vertex_indices = temp_group.vertex_indices, &unique_vertices = unique_vertices_per_group[0]](const Vertex& vertex)
 	{
 		if (unique_vertices.count(vertex) == 0)
 		{
@@ -60,55 +63,47 @@ void loadModel(const std::string& path)
 		vertex_indices.push_back(static_cast<util::Vertex::index_t>(unique_vertices[vertex]));
 	};
 
-	std::array<Vertex, 3> current_tri;
+	//std::array<Vertex, 3> current_tri;
 	for (const auto& shape : shapes)
 	{
-		for (auto i = 0; i < shape.mesh.indices.size(); i++)
+
+		size_t indexOffset = 0;
+		for (size_t n = 0; n < shape.mesh.num_face_vertices.size(); n++) 
 		{
-			const auto& index = shape.mesh.indices[i];
-			auto & vertex = current_tri[i % 3];
-
-			vertex.pos = {
-				attrib.vertices[3 * index.vertex_index + 0],
-				attrib.vertices[3 * index.vertex_index + 1],
-				attrib.vertices[3 * index.vertex_index + 2]
-			};
-
-			// since the y axis of obj's texture coordinate points up
-			vertex.tex_coord = {
-				attrib.texcoords[2 * index.texcoord_index + 0],
-				1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
-			};
-
-			if (has_vertex_normal)
+			// per face
+			auto ngon = shape.mesh.num_face_vertices[n];
+			auto material_id = shape.mesh.material_ids[n];
+			for (size_t f = 0; f < ngon; f++) 
 			{
+				const auto& index = shape.mesh.indices[indexOffset + f];
+
+				Vertex vertex;
+
+				vertex.pos = {
+					attrib.vertices[3 * index.vertex_index + 0],
+					attrib.vertices[3 * index.vertex_index + 1],
+					attrib.vertices[3 * index.vertex_index + 2]
+				};
+
+				vertex.tex_coord = {
+					attrib.texcoords[2 * index.texcoord_index + 0],
+					1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+				};
+
 				vertex.normal = {
 					attrib.normals[3 * index.normal_index + 0],
 					attrib.normals[3 * index.normal_index + 1],
 					attrib.normals[3 * index.normal_index + 2]
 				};
-			}
 
-			if (has_vertex_normal)
-			{
 				append_vertex(vertex);
+
 			}
-			else
-			{
-				// we need to calculate the normal for the triangle
-				if (i % 3 == 2)
-				{
-					// last one in triangle
-					auto normal = glm::normalize(glm::cross(current_tri[1].pos - current_tri[0].pos, current_tri[2].pos - current_tri[0].pos));
-					for (auto& v : current_tri)
-					{
-						v.normal = normal;
-						append_vertex(v);
-					}
-				}
-			}
+			indexOffset += ngon;
 		}
 	}
+
+	return temp_group;
 }
 
 VModel VModel::loadModelFromFile(vk::Device device_handle, const std::string & path)
@@ -116,6 +111,8 @@ VModel VModel::loadModelFromFile(vk::Device device_handle, const std::string & p
 	VModel model;
 	
 	//std::vector<util::Vertex> vertices, std::vector<util::Vertex::index_t> vertex_indices;
+	auto group = loadModel(path);
+
 
 	return VModel();
 }

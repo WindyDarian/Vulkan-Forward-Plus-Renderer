@@ -54,7 +54,7 @@ private:
 	VModel() = default;
 
 	VRaii<vk::Buffer> buffer;
-	std::vector<VRaii<vk::Image>> images;
+	//std::vector<VRaii<vk::Image>> images;
 	std::vector<VMeshPart> mesh_parts;
 
 	const std::vector<VMeshPart>& getMeshParts() const

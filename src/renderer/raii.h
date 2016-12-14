@@ -36,6 +36,11 @@ public:
 		return object;
 	}
 
+	const T& get() const
+	{
+		return object;
+	}
+
 	T* data()
 	{
 		return &object;

@@ -60,6 +60,7 @@ std::tuple<std::vector<util::Vertex>, std::vector<util::Vertex::index_t>> util::
 	}
 
 	bool has_vertex_normal = attrib.normals.size() > 0;
+	assert(has_vertex_normal);
 
 	std::unordered_map<Vertex, size_t> unique_vertices = {};
 	auto append_vertex = [&vertices, &vertex_indices, &unique_vertices](const Vertex& vertex)
@@ -73,53 +74,42 @@ std::tuple<std::vector<util::Vertex>, std::vector<util::Vertex::index_t>> util::
 		vertex_indices.push_back(static_cast<util::Vertex::index_t>(unique_vertices[vertex]));
 	};
 
-	std::array<Vertex, 3> current_tri;
+	//std::array<Vertex, 3> current_tri;
 	for (const auto& shape : shapes)
 	{
-		for (auto i = 0; i < shape.mesh.indices.size(); i++)
+
+		size_t indexOffset = 0;
+		for (size_t n = 0; n < shape.mesh.num_face_vertices.size(); n++)
 		{
-			const auto& index = shape.mesh.indices[i];
-			auto & vertex = current_tri[i % 3];
-
-			vertex.pos = {
-				attrib.vertices[3 * index.vertex_index + 0],
-				attrib.vertices[3 * index.vertex_index + 1],
-				attrib.vertices[3 * index.vertex_index + 2]
-			};
-
-			// since the y axis of obj's texture coordinate points up
-			vertex.tex_coord = {
-				attrib.texcoords[2 * index.texcoord_index + 0],
-				1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
-			};
-
-			if (has_vertex_normal)
+			// per face
+			int ngon = shape.mesh.num_face_vertices[n];
+			for (size_t f = 0; f < ngon; f++)
 			{
+				const auto& index = shape.mesh.indices[indexOffset + f];
+
+				Vertex vertex;
+
+				vertex.pos = {
+					attrib.vertices[3 * index.vertex_index + 0],
+					attrib.vertices[3 * index.vertex_index + 1],
+					attrib.vertices[3 * index.vertex_index + 2]
+				};
+
+				vertex.tex_coord = {
+					attrib.texcoords[2 * index.texcoord_index + 0],
+					1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+				};
+
 				vertex.normal = {
 					attrib.normals[3 * index.normal_index + 0],
 					attrib.normals[3 * index.normal_index + 1],
 					attrib.normals[3 * index.normal_index + 2]
 				};
-			}
 
-			if (has_vertex_normal)
-			{
 				append_vertex(vertex);
+
 			}
-			else
-			{
-				// we need to calculate the normal for the triangle
-				if (i % 3 == 2)
-				{
-					// last one in triangle
-					auto normal = glm::normalize(glm::cross(current_tri[1].pos - current_tri[0].pos, current_tri[2].pos - current_tri[0].pos));
-					for (auto& v : current_tri)
-					{
-						v.normal = normal;
-						append_vertex(v);
-					}
-				}
-			}
+			indexOffset += ngon;
 		}
 	}
 
