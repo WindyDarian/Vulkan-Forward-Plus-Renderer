@@ -52,23 +52,57 @@ public:
 
 	std::pair<int, int> getWindowFrameBufferSize();
 
+	auto getQueueFamilyIndices()
+	{
+		return queue_family_indices;
+	}
+
+	vk::PhysicalDevice getPhysicalDevice()
+	{
+		return physical_device;
+	}
+
+	vk::Device getDevice()
+	{
+		return device;
+	}
+
+	vk::Queue getGraphicsQueue()
+	{
+		return graphics_queue;
+	}
+
+	vk::Queue getPresentQueue()
+	{
+		return present_queue;
+	}
+
+	vk::Queue getComputeQueue()
+	{
+		return compute_queue;
+	}
+
+	vk::SurfaceKHR getWindowSurface()
+	{
+		return window_surface.get();
+	}
+
 private:
 
 	GLFWwindow* window;
 
 	VDeleter<VkInstance> instance{ vkDestroyInstance };
 	VDeleter<VkDebugReportCallbackEXT> callback{ instance, DestroyDebugReportCallbackEXT };
+	VDeleter<VkDevice> graphics_device{ vkDestroyDevice }; //logical device
+	VDeleter<VkSurfaceKHR> window_surface{ instance, vkDestroySurfaceKHR };
 
-
-public: // TODO: make them private after I removed all VDeleter
 	QueueFamilyIndices queue_family_indices;
 	VkPhysicalDevice physical_device;
-	VDeleter<VkDevice> graphics_device{ vkDestroyDevice }; //logical device
 	vk::Device device; // vulkan.hpp wraper for graphics_device, maybe I should migrate all code to vulkan-hpp
 	vk::Queue graphics_queue;
-	VDeleter<VkSurfaceKHR> window_surface{ instance, vkDestroySurfaceKHR };
 	VkQueue present_queue;
 	vk::Queue compute_queue;
+
 private:
 
 	static void DestroyDebugReportCallbackEXT(VkInstance instance

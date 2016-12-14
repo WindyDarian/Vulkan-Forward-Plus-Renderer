@@ -113,10 +113,11 @@ private:
 	// TODO: remove those
 	QueueFamilyIndices queue_family_indices;
 	VkPhysicalDevice physical_device;
-	VDeleter<VkDevice> graphics_device{ vkDestroyDevice }; //logical device
+	//VDeleter<VkDevice> graphics_device{ vkDestroyDevice }; //logical device
+	VkDevice graphics_device;
 	vk::Device device; // vulkan.hpp wraper for graphics_device, maybe I should migrate all code to vulkan-hpp
 	vk::Queue graphics_queue;
-	VkQueue present_queue;
+	vk::Queue present_queue;
 	vk::Queue compute_queue;
 	//////////////////////////////////////////////////////
 	
@@ -133,22 +134,22 @@ private:
 
 	VRaii<vk::DescriptorSetLayout> object_descriptor_set_layout;
 	VRaii<vk::DescriptorSetLayout> camera_descriptor_set_layout;
-	VDeleter<VkPipelineLayout> pipeline_layout{ graphics_device, vkDestroyPipelineLayout };
-	VDeleter<VkPipeline> graphics_pipeline{ graphics_device, vkDestroyPipeline };
+	VRaii<VkPipelineLayout> pipeline_layout;
+	VRaii<VkPipeline> graphics_pipeline;
 	VRaii<vk::PipelineLayout> depth_pipeline_layout;
 	VRaii<vk::Pipeline> depth_pipeline;
 
 	VRaii<vk::DescriptorSetLayout> light_culling_descriptor_set_layout;  // shared between compute queue and graphics queue
 	VRaii<vk::DescriptorSetLayout> intermediate_descriptor_set_layout; // which is exclusive to compute queue
-	VDeleter<VkPipelineLayout> compute_pipeline_layout{ graphics_device, vkDestroyPipelineLayout };
-	VDeleter<VkPipeline> compute_pipeline{ graphics_device, vkDestroyPipeline };
-	VDeleter<VkCommandPool> compute_command_pool{ graphics_device, vkDestroyCommandPool };
+	VRaii<VkPipelineLayout> compute_pipeline_layout;
+	VRaii<VkPipeline> compute_pipeline;
+	VRaii<vk::CommandPool> compute_command_pool;
 	vk::CommandBuffer light_culling_command_buffer = VK_NULL_HANDLE;
 	//VRaii<vk::PipelineLayout> compute_pipeline_layout;
 	//VRaii<vk::Pipeline> compute_pipeline;
 
 	// Command buffers
-	VDeleter<VkCommandPool> command_pool{ graphics_device, vkDestroyCommandPool };
+	VRaii<vk::CommandPool> command_pool;
 	std::vector<VkCommandBuffer> command_buffers; // buffers will be released when pool destroyed
 	vk::CommandBuffer depth_prepass_command_buffer;
 
@@ -158,50 +159,49 @@ private:
 	VRaii<vk::Semaphore> depth_prepass_finished_semaphore;
 
 	// only one image buffer for depth because only one draw operation happens at one time
-	VDeleter<VkImage> depth_image{ graphics_device, vkDestroyImage };
-	VDeleter<VkDeviceMemory> depth_image_memory{ graphics_device, vkFreeMemory };
-	VDeleter<VkImageView> depth_image_view{ graphics_device, vkDestroyImageView };
+	VRaii<VkImage> depth_image;
+	VRaii<VkDeviceMemory> depth_image_memory;
+	VRaii<VkImageView> depth_image_view;
 	// for depth pre pass
-	VDeleter<VkImage> pre_pass_depth_image{ graphics_device, vkDestroyImage };
-	VDeleter<VkDeviceMemory> pre_pass_depth_image_memory{ graphics_device, vkFreeMemory };
-	VDeleter<VkImageView> pre_pass_depth_image_view{ graphics_device, vkDestroyImageView };
+	VRaii<VkImage> pre_pass_depth_image;
+	VRaii<VkDeviceMemory> pre_pass_depth_image_memory;
+	VRaii<VkImageView> pre_pass_depth_image_view;
 
 	// texture image
-	VDeleter<VkImage> texture_image{ graphics_device, vkDestroyImage };
-	VDeleter<VkDeviceMemory> texture_image_memory{ graphics_device, vkFreeMemory };
-	VDeleter<VkImageView> texture_image_view{ graphics_device, vkDestroyImageView };
-	VDeleter<VkImage> normalmap_image{ graphics_device, vkDestroyImage };
-	VDeleter<VkDeviceMemory> normalmap_image_memory{ graphics_device, vkFreeMemory };
-	VDeleter<VkImageView> normalmap_image_view{ graphics_device, vkDestroyImageView };
-	VDeleter<VkSampler> texture_sampler{ graphics_device, vkDestroySampler };
-	VDeleter<VkSampler> depth_sampler{ graphics_device, vkDestroySampler };
+	VRaii<VkImage> texture_image;
+	VRaii<VkDeviceMemory> texture_image_memory;
+	VRaii<VkImageView> texture_image_view;
+	VRaii<VkImage> normalmap_image;
+	VRaii<VkDeviceMemory> normalmap_image_memory;
+	VRaii<VkImageView> normalmap_image_view;
+	VRaii<VkSampler> texture_sampler;
 
 	// uniform buffers
-	VDeleter<VkBuffer> object_staging_buffer{ graphics_device, vkDestroyBuffer };
-	VDeleter<VkDeviceMemory> object_staging_buffer_memory{ graphics_device, vkFreeMemory };
-	VDeleter<VkBuffer> object_uniform_buffer{ graphics_device, vkDestroyBuffer };
-	VDeleter<VkDeviceMemory> object_uniform_buffer_memory{ graphics_device, vkFreeMemory };
-	VDeleter<VkBuffer> camera_staging_buffer{ graphics_device, vkDestroyBuffer };
-	VDeleter<VkDeviceMemory> camera_staging_buffer_memory{ graphics_device, vkFreeMemory };
-	VDeleter<VkBuffer> camera_uniform_buffer{ graphics_device, vkDestroyBuffer };
-	VDeleter<VkDeviceMemory> camera_uniform_buffer_memory{ graphics_device, vkFreeMemory };
+	VRaii<VkBuffer> object_staging_buffer;
+	VRaii<VkDeviceMemory> object_staging_buffer_memory;
+	VRaii<VkBuffer> object_uniform_buffer;
+	VRaii<VkDeviceMemory> object_uniform_buffer_memory;
+	VRaii<VkBuffer> camera_staging_buffer;
+	VRaii<VkDeviceMemory> camera_staging_buffer_memory;
+	VRaii<VkBuffer> camera_uniform_buffer;
+	VRaii<VkDeviceMemory> camera_uniform_buffer_memory;
 
-	VDeleter<VkDescriptorPool> descriptor_pool{ graphics_device, vkDestroyDescriptorPool };
+	VRaii<VkDescriptorPool> descriptor_pool;
 	VkDescriptorSet object_descriptor_set;
 	vk::DescriptorSet camera_descriptor_set;
 	VkDescriptorSet light_culling_descriptor_set;
 	vk::DescriptorSet intermediate_descriptor_set;
 
 	// vertex buffer
-	VDeleter<VkBuffer> vertex_buffer{ this->graphics_device, vkDestroyBuffer };
-	VDeleter<VkDeviceMemory> vertex_buffer_memory{ graphics_device, vkFreeMemory };
-	VDeleter<VkBuffer> index_buffer{ graphics_device, vkDestroyBuffer };
-	VDeleter<VkDeviceMemory> index_buffer_memory{ graphics_device, vkFreeMemory };
+	VRaii<VkBuffer> vertex_buffer;
+	VRaii<VkDeviceMemory> vertex_buffer_memory;
+	VRaii<VkBuffer> index_buffer;
+	VRaii<VkDeviceMemory> index_buffer_memory;
 
-	VDeleter<VkBuffer> pointlight_buffer{ this->graphics_device, vkDestroyBuffer };
-	VDeleter<VkDeviceMemory> pointlight_buffer_memory{ graphics_device, vkFreeMemory };
-	VDeleter<VkBuffer> lights_staging_buffer{ graphics_device, vkDestroyBuffer };
-	VDeleter<VkDeviceMemory> lights_staging_buffer_memory{ graphics_device, vkFreeMemory };
+	VRaii<VkBuffer> pointlight_buffer;
+	VRaii<VkDeviceMemory> pointlight_buffer_memory;
+	VRaii<VkBuffer> lights_staging_buffer;
+	VRaii<VkDeviceMemory> lights_staging_buffer_memory;
 	VkDeviceSize pointlight_buffer_size;
 
 	std::vector<util::Vertex> vertices;
@@ -214,8 +214,8 @@ private:
 	// This storage buffer stores visible lights for each tile
 	// which is output from the light culling compute shader
 	// max MAX_POINT_LIGHT_PER_TILE point lights per tile
-	VDeleter<VkBuffer> light_visibility_buffer{ this->graphics_device, vkDestroyBuffer };
-	VDeleter<VkDeviceMemory> light_visibility_buffer_memory{ graphics_device, vkFreeMemory };
+	VRaii<VkBuffer> light_visibility_buffer;
+	VRaii<VkDeviceMemory> light_visibility_buffer_memory;
 	VkDeviceSize light_visibility_buffer_size = 0;
 
 	int window_framebuffer_width;
@@ -308,7 +308,7 @@ private:
 	void updateUniformBuffers(float deltatime);
 	void drawFrame();
 
-	void createShaderModule(const std::vector<char>& code, VkShaderModule* p_shader_module);
+	VRaii<VkShaderModule> createShaderModule(const std::vector<char>& code);
 
 
 	VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& available_formats);
@@ -324,19 +324,20 @@ private:
 		);
 	}
 
-	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags property_bits, VkBuffer * p_buffer, VkDeviceMemory * p_buffer_memory, int sharing_queue_family_index_a = -1, int sharing_queue_family_index_b = -1);
+	std::tuple<VRaii<VkBuffer>, VRaii<VkDeviceMemory>> createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags property_bits, int sharing_queue_family_index_a = -1, int sharing_queue_family_index_b = -1);
 	void copyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
 
-	void createImage(uint32_t image_width, uint32_t image_height
+	std::tuple<VRaii<VkImage>, VRaii<VkDeviceMemory>> createImage(uint32_t image_width, uint32_t image_height
 		, VkFormat format, VkImageTiling tiling
-		, VkImageUsageFlags usage, VkMemoryPropertyFlags memory_properties
-		, VkImage* p_vkimage, VkDeviceMemory* p_image_memory);
+		, VkImageUsageFlags usage, VkMemoryPropertyFlags memory_properties);
+
 	void copyImage(VkImage src_image, VkImage dst_image, uint32_t width, uint32_t height);
 	void transitImageLayout(VkImage image, VkImageLayout old_layout, VkImageLayout new_layout);
 
-	void createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspect_mask, VkImageView * p_image_view);
+	void createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspect_mask, VkImageView* p_image_view);
+	VRaii<VkImageView> createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspect_mask);
 
-	void loadImageFromFile(std::string path, VkImage* p_vkimage, VkDeviceMemory* p_image_memory, VkImageView * p_image_view);
+	std::tuple<VRaii<VkImage>, VRaii<VkDeviceMemory>, VRaii<VkImageView>> loadImageFromFile(std::string path);
 
 	VkCommandBuffer beginSingleTimeCommands();
 	void endSingleTimeCommands(VkCommandBuffer commandBuffer);
@@ -353,13 +354,13 @@ _VulkanRenderer_Impl::_VulkanRenderer_Impl(GLFWwindow* window)
 	:vulkan_context(window)
 {
 
-	queue_family_indices = vulkan_context.queue_family_indices;
-	physical_device = vulkan_context.physical_device;
-	graphics_device = std::move(vulkan_context.graphics_device);
-	device = vulkan_context.device;
-	graphics_queue = vulkan_context.graphics_queue;
-	present_queue = vulkan_context.present_queue;
-	compute_queue = vulkan_context.compute_queue;
+	queue_family_indices = vulkan_context.getQueueFamilyIndices();
+	physical_device = vulkan_context.getPhysicalDevice();
+	graphics_device = vulkan_context.getDevice();
+	device = vulkan_context.getDevice();
+	graphics_queue = vulkan_context.getGraphicsQueue();
+	present_queue = vulkan_context.getPresentQueue();
+	compute_queue = vulkan_context.getComputeQueue();
 
 	std::tie(window_framebuffer_width, window_framebuffer_height) = vulkan_context.getWindowFrameBufferSize();
 	
@@ -394,7 +395,7 @@ void _VulkanRenderer_Impl::setCamera(const glm::mat4 & view, const glm::vec3 cam
 
 void _VulkanRenderer_Impl::createSwapChain()
 {
-	auto support_details = SwapChainSupportDetails::querySwapChainSupport(physical_device, vulkan_context.window_surface);
+	auto support_details = SwapChainSupportDetails::querySwapChainSupport(physical_device, vulkan_context.getWindowSurface());
 
 	VkSurfaceFormatKHR surface_format = chooseSwapSurfaceFormat(support_details.formats);
 	VkPresentModeKHR present_mode = chooseSwapPresentMode(support_details.present_modes);
@@ -409,7 +410,7 @@ void _VulkanRenderer_Impl::createSwapChain()
 
 	VkSwapchainCreateInfoKHR create_info = {};
 	create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-	create_info.surface = vulkan_context.window_surface;
+	create_info.surface = vulkan_context.getWindowSurface();
 	create_info.minImageCount = queue_length;
 	create_info.imageFormat = surface_format.format;
 	create_info.imageColorSpace = surface_format.colorSpace;
@@ -418,7 +419,7 @@ void _VulkanRenderer_Impl::createSwapChain()
 	create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT; // render directly
 	// VK_IMAGE_USAGE_TRANSFER_DST_BIT and memory operation to enable post processing
 
-	QueueFamilyIndices indices = QueueFamilyIndices::findQueueFamilies(physical_device, vulkan_context.window_surface);
+	QueueFamilyIndices indices = QueueFamilyIndices::findQueueFamilies(physical_device, vulkan_context.getWindowSurface());
 	uint32_t queueFamilyIndices[] = { (uint32_t)indices.graphics_family, (uint32_t)indices.present_family };
 
 	if (indices.graphics_family != indices.present_family)
@@ -736,28 +737,38 @@ void _VulkanRenderer_Impl::createDescriptorSetLayouts()
 
 void _VulkanRenderer_Impl::createGraphicsPipelines()
 {
-	std::array<VkPipeline, 2> pipelines;
+
+	auto raii_pipeline_layout_deleter = [device = this->device](auto & obj)
+	{
+		device.destroyPipelineLayout(obj);
+	};
+	auto raii_pipeline_deleter = [device = this->device](auto & obj)
+	{
+		device.destroyPipeline(obj);
+	};
+
 	// create main pipeline
 	{
 		auto vert_shader_code = util::readFile(util::getContentPath("forwardplus_vert.spv"));
 		auto frag_shader_code = util::readFile(util::getContentPath("forwardplus_frag.spv"));
 		// auto light_culling_comp_shader_code = util::readFile(util::getContentPath("light_culling.comp.spv"));
 
-		VDeleter<VkShaderModule> vert_shader_module{ graphics_device, vkDestroyShaderModule };
-		VDeleter<VkShaderModule> frag_shader_module{ graphics_device, vkDestroyShaderModule };
-		createShaderModule(vert_shader_code, &vert_shader_module);
-		createShaderModule(frag_shader_code, &frag_shader_module);
+
+
+		auto vert_shader_module = createShaderModule(vert_shader_code);
+		auto frag_shader_module = createShaderModule(frag_shader_code);
+
 
 		VkPipelineShaderStageCreateInfo vert_shader_stage_info = {};
 		vert_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		vert_shader_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
-		vert_shader_stage_info.module = vert_shader_module;
+		vert_shader_stage_info.module = vert_shader_module.get();
 		vert_shader_stage_info.pName = "main";
 
 		VkPipelineShaderStageCreateInfo frag_shader_stage_info = {};
 		frag_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		frag_shader_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-		frag_shader_stage_info.module = frag_shader_module;
+		frag_shader_stage_info.module = frag_shader_module.get();
 		frag_shader_stage_info.pName = "main";
 
 		VkPipelineShaderStageCreateInfo shaderStages[] = { vert_shader_stage_info, frag_shader_stage_info };
@@ -877,13 +888,14 @@ void _VulkanRenderer_Impl::createGraphicsPipelines()
 		pipeline_layout_info.pushConstantRangeCount = 1; // Optional
 		pipeline_layout_info.pPushConstantRanges = &push_constant_range; // Optional
 
-
+		VkPipelineLayout temp_layout;
 		auto pipeline_layout_result = vkCreatePipelineLayout(graphics_device, &pipeline_layout_info, nullptr,
-			&pipeline_layout);
+			&temp_layout);
 		if (pipeline_layout_result != VK_SUCCESS)
 		{
 			throw std::runtime_error("failed to create pipeline layout!");
 		}
+		pipeline_layout = VRaii<VkPipelineLayout>(temp_layout, raii_pipeline_layout_deleter);
 
 		VkGraphicsPipelineCreateInfo pipelineInfo = {};
 		pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -898,15 +910,17 @@ void _VulkanRenderer_Impl::createGraphicsPipelines()
 		pipelineInfo.pDepthStencilState = &depth_stencil;
 		pipelineInfo.pColorBlendState = &color_blending_info;
 		pipelineInfo.pDynamicState = nullptr; // Optional
-		pipelineInfo.layout = pipeline_layout;
+		pipelineInfo.layout = pipeline_layout.get();
 		pipelineInfo.renderPass = render_pass.get();
 		pipelineInfo.subpass = 0;
 		pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // not deriving from existing pipeline
 		pipelineInfo.basePipelineIndex = -1; // Optional
 		pipelineInfo.flags = VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT;
 
+		VkPipeline temp_pipeline;
 		auto pipeline_result = vkCreateGraphicsPipelines(graphics_device, VK_NULL_HANDLE, 1
-			, &pipelineInfo, nullptr, &graphics_pipeline);
+			, &pipelineInfo, nullptr, &temp_pipeline);
+		graphics_pipeline = VRaii<VkPipeline>(temp_pipeline, raii_pipeline_deleter);
 
 		if (pipeline_result != VK_SUCCESS)
 		{
@@ -918,12 +932,11 @@ void _VulkanRenderer_Impl::createGraphicsPipelines()
 
 		auto depth_vert_shader_code = util::readFile(util::getContentPath("depth_vert.spv"));
 		// auto light_culling_comp_shader_code = util::readFile(util::getContentPath("light_culling.comp.spv"));
-		VDeleter<VkShaderModule> depth_vert_shader_module{ graphics_device, vkDestroyShaderModule };
-		createShaderModule(depth_vert_shader_code, &depth_vert_shader_module);
+		auto depth_vert_shader_module = createShaderModule(depth_vert_shader_code);
 		VkPipelineShaderStageCreateInfo depth_vert_shader_stage_info = {};
 		depth_vert_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		depth_vert_shader_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
-		depth_vert_shader_stage_info.module = depth_vert_shader_module;
+		depth_vert_shader_stage_info.module = depth_vert_shader_module.get();
 		depth_vert_shader_stage_info.pName = "main";
 		VkPipelineShaderStageCreateInfo depth_shader_stages[] = { depth_vert_shader_stage_info };
 
@@ -938,10 +951,7 @@ void _VulkanRenderer_Impl::createGraphicsPipelines()
 		};
 		depth_pipeline_layout = VRaii<vk::PipelineLayout>(
 			device.createPipelineLayout(depth_layout_info, nullptr),
-			[&device = this->device](auto & obj)
-			{
-				device.destroyPipelineLayout(obj);
-			}
+			raii_pipeline_layout_deleter
 		);
 
 		VkGraphicsPipelineCreateInfo depth_pipeline_info = {};
@@ -966,10 +976,7 @@ void _VulkanRenderer_Impl::createGraphicsPipelines()
 
 		depth_pipeline = VRaii<vk::Pipeline>(
 			device.createGraphicsPipeline(vk::PipelineCache(), depth_pipeline_info, nullptr),
-			[&device = this->device](auto & obj)
-			{
-				device.destroyPipeline(obj);
-			}
+			raii_pipeline_deleter
 		);
 	}
 }
@@ -988,7 +995,7 @@ void _VulkanRenderer_Impl::createFrameBuffers()
 
 		for (size_t i = 0; i < swap_chain_imageviews.size(); i++)
 		{
-			std::array<VkImageView, 2> attachments = { swap_chain_imageviews[i].get(), depth_image_view };
+			std::array<VkImageView, 2> attachments = { swap_chain_imageviews[i].get(), depth_image_view.get() };
 
 			VkFramebufferCreateInfo framebuffer_info = {};
 			framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -1008,7 +1015,7 @@ void _VulkanRenderer_Impl::createFrameBuffers()
 
 	// depth pass frame buffer
 	{
-		std::array<VkImageView, 1> attachments = { pre_pass_depth_image_view };
+		std::array<VkImageView, 1> attachments = { pre_pass_depth_image_view.get() };
 
 		VkFramebufferCreateInfo framebuffer_info = {};
 		framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -1028,7 +1035,7 @@ void _VulkanRenderer_Impl::createFrameBuffers()
 
 void _VulkanRenderer_Impl::createCommandPool()
 {
-	auto& indices = vulkan_context.queue_family_indices;
+	auto& indices = queue_family_indices;
 
 	VkCommandPoolCreateInfo pool_info = {};
 	pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -1037,43 +1044,41 @@ void _VulkanRenderer_Impl::createCommandPool()
 	// hint the command pool will rerecord buffers by VK_COMMAND_POOL_CREATE_TRANSIENT_BIT
 	// allow buffers to be rerecorded individually by VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
 
-	auto result = vkCreateCommandPool(graphics_device, &pool_info, nullptr, &command_pool);
-	if (result != VK_SUCCESS)
-	{
-		throw std::runtime_error("failed to create command pool!");
-	}
+	command_pool = VRaii<vk::CommandPool>(
+		device.createCommandPool(pool_info, nullptr),
+		[device = this->device](auto& obj)
+		{
+			device.destroyCommandPool(obj);
+		}
+	);
 }
 
 void _VulkanRenderer_Impl::createDepthResources()
 {
 	VkFormat depth_format = findDepthFormat();
-	createImage(swap_chain_extent.width, swap_chain_extent.height
+	std::tie(depth_image, depth_image_memory) = createImage(swap_chain_extent.width, swap_chain_extent.height
 		, depth_format
 		, VK_IMAGE_TILING_OPTIMAL
 		, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT 
-		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-		, &depth_image
-		, &depth_image_memory);
-	createImageView(depth_image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, &depth_image_view);
-	transitImageLayout(depth_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	depth_image_view =  createImageView(depth_image.get(), depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
+	transitImageLayout(depth_image.get(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
 	// for depth pre pass and output as texture
-	createImage(swap_chain_extent.width, swap_chain_extent.height
+	std::tie(pre_pass_depth_image, pre_pass_depth_image_memory) = createImage(swap_chain_extent.width, swap_chain_extent.height
 		, depth_format
 		, VK_IMAGE_TILING_OPTIMAL
 		//, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT  // TODO: if creating another depth image for prepass use, use this only for rendering depth image
 		, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
-		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-		, &pre_pass_depth_image
-		, &pre_pass_depth_image_memory);
-	createImageView(pre_pass_depth_image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, &pre_pass_depth_image_view);
-	transitImageLayout(pre_pass_depth_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	pre_pass_depth_image_view = createImageView(pre_pass_depth_image.get(), depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
+	transitImageLayout(pre_pass_depth_image.get(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 }
 
 void _VulkanRenderer_Impl::createTextureAndNormal()
 {
-	loadImageFromFile(util::TEXTURE_PATH, &texture_image, &texture_image_memory, &texture_image_view);
-	loadImageFromFile(util::NORMALMAP_PATH, &normalmap_image, &normalmap_image_memory, &normalmap_image_view);
+	std::tie(texture_image, texture_image_memory, texture_image_view) = loadImageFromFile(util::TEXTURE_PATH);
+	std::tie(normalmap_image, normalmap_image_memory, normalmap_image_view) = loadImageFromFile(util::NORMALMAP_PATH);
 }
 
 void _VulkanRenderer_Impl::createTextureSampler()
@@ -1101,11 +1106,19 @@ void _VulkanRenderer_Impl::createTextureSampler()
 	sampler_info.minLod = 0.0f;
 	sampler_info.maxLod = 0.0f;
 	
-	
-	if (vkCreateSampler(graphics_device, &sampler_info, nullptr, &texture_sampler) != VK_SUCCESS)
+	VkSampler sampler;
+	if (vkCreateSampler(graphics_device, &sampler_info, nullptr, &sampler) != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to create texture sampler!");
 	}
+
+	texture_sampler = VRaii<VkSampler>(
+		sampler,
+		[device = this->device](auto& obj)
+		{
+			device.destroySampler(obj);
+		}
+	);
 }
 
 uint32_t findMemoryType(uint32_t type_filter, VkMemoryPropertyFlags properties, VkPhysicalDevice physical_device)
@@ -1131,30 +1144,27 @@ void _VulkanRenderer_Impl::createVertexBuffer()
 	VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
 
 	// create staging buffer
-	VDeleter<VkBuffer> staging_buffer{ graphics_device, vkDestroyBuffer };
-	VDeleter<VkDeviceMemory> staging_buffer_memory{ graphics_device, vkFreeMemory };
-	createBuffer(buffer_size
+	VRaii<VkBuffer> staging_buffer;
+	VRaii<VkDeviceMemory> staging_buffer_memory;
+	std::tie(staging_buffer, staging_buffer_memory) = createBuffer(buffer_size
 		, VK_BUFFER_USAGE_TRANSFER_SRC_BIT // to be transfered from
 		, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-		, &staging_buffer
-		, &staging_buffer_memory);
+		);
 
 	// copy data to staging buffer
 	void* data;
-	vkMapMemory(graphics_device, staging_buffer_memory, 0, buffer_size, 0, &data); // access the graphics memory using mapping
+	vkMapMemory(graphics_device, staging_buffer_memory.get(), 0, buffer_size, 0, &data); // access the graphics memory using mapping
 		memcpy(data, vertices.data(), (size_t)buffer_size); // may not be immediate due to memory caching or write operation not visiable without VK_MEMORY_PROPERTY_HOST_COHERENT_BIT or explict flusing
-	vkUnmapMemory(graphics_device, staging_buffer_memory);
+	vkUnmapMemory(graphics_device, staging_buffer_memory.get());
 
 	// create vertex buffer at optimized local memory which may not be directly accessable by memory mapping
 	// as copy destination of staging buffer
-	createBuffer(buffer_size
+	std::tie(vertex_buffer, vertex_buffer_memory) = createBuffer(buffer_size
 		, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
-		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-		, &vertex_buffer
-		, &vertex_buffer_memory);
+		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 	// copy content of staging buffer to vertex buffer
-	copyBuffer(staging_buffer, vertex_buffer, buffer_size);
+	copyBuffer(staging_buffer.get(), vertex_buffer.get(), buffer_size);
 }
 
 void _VulkanRenderer_Impl::createIndexBuffer()
@@ -1162,27 +1172,23 @@ void _VulkanRenderer_Impl::createIndexBuffer()
 	VkDeviceSize buffer_size = sizeof(vertex_indices[0]) * vertex_indices.size();
 
 	// create staging buffer
-	VDeleter<VkBuffer> staging_buffer{ graphics_device, vkDestroyBuffer };
-	VDeleter<VkDeviceMemory> staging_buffer_memory{ graphics_device, vkFreeMemory };
-	createBuffer(buffer_size
+	VRaii<VkBuffer> staging_buffer;
+	VRaii<VkDeviceMemory> staging_buffer_memory;
+	std::tie(staging_buffer, staging_buffer_memory) = createBuffer(buffer_size
 		, VK_BUFFER_USAGE_TRANSFER_SRC_BIT // to be transfered from
-		, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-		, &staging_buffer
-		, &staging_buffer_memory);
+		, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
 	void* data;
-	vkMapMemory(graphics_device, staging_buffer_memory, 0, buffer_size, 0, &data); // access the graphics memory using mapping
+	vkMapMemory(graphics_device, staging_buffer_memory.get(), 0, buffer_size, 0, &data); // access the graphics memory using mapping
 	memcpy(data, vertex_indices.data(), (size_t)buffer_size); // may not be immediate due to memory caching or write operation not visiable without VK_MEMORY_PROPERTY_HOST_COHERENT_BIT or explict flusing
-	vkUnmapMemory(graphics_device, staging_buffer_memory);
+	vkUnmapMemory(graphics_device, staging_buffer_memory.get());
 
-	createBuffer(buffer_size
+	std::tie(index_buffer, index_buffer_memory) = createBuffer(buffer_size
 		, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT
-		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-		, &index_buffer
-		, &index_buffer_memory);
+		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 	// copy content of staging buffer to index buffer
-	copyBuffer(staging_buffer, index_buffer, buffer_size);
+	copyBuffer(staging_buffer.get(), index_buffer.get(), buffer_size);
 }
 
 void _VulkanRenderer_Impl::createUniformBuffers()
@@ -1191,16 +1197,12 @@ void _VulkanRenderer_Impl::createUniformBuffers()
 	{
 		VkDeviceSize bufferSize = sizeof(SceneObjectUbo);
 
-		createBuffer(bufferSize
+		std::tie(object_staging_buffer, object_staging_buffer_memory) = createBuffer(bufferSize
 			, VK_BUFFER_USAGE_TRANSFER_SRC_BIT
-			, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-			, &object_staging_buffer
-			, &object_staging_buffer_memory);
-		createBuffer(bufferSize
+			, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		std::tie(object_uniform_buffer, object_uniform_buffer_memory) = createBuffer(bufferSize
 			, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
-			, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-			, &object_uniform_buffer
-			, &object_uniform_buffer_memory);
+			, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 	}
 
 	// Adding data to scene object buffer
@@ -1209,26 +1211,22 @@ void _VulkanRenderer_Impl::createUniformBuffers()
 		ubo.model = glm::mat4(1.0f);
 
 		void* data;
-		vkMapMemory(graphics_device, object_staging_buffer_memory, 0, sizeof(ubo), 0, &data);
+		vkMapMemory(graphics_device, object_staging_buffer_memory.get(), 0, sizeof(ubo), 0, &data);
 		memcpy(data, &ubo, sizeof(ubo));
-		vkUnmapMemory(graphics_device, object_staging_buffer_memory);
-		copyBuffer(object_staging_buffer, object_uniform_buffer, sizeof(ubo));
+		vkUnmapMemory(graphics_device, object_staging_buffer_memory.get());
+		copyBuffer(object_staging_buffer.get(), object_uniform_buffer.get(), sizeof(ubo));
 	}
 
 	// create buffers for camera
 	{
 		VkDeviceSize bufferSize = sizeof(CameraUbo);
 
-		createBuffer(bufferSize
+		std::tie(camera_staging_buffer, camera_staging_buffer_memory) = createBuffer(bufferSize
 			, VK_BUFFER_USAGE_TRANSFER_SRC_BIT
-			, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-			, &camera_staging_buffer
-			, &camera_staging_buffer_memory);
-		createBuffer(bufferSize
+			, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		std::tie(camera_uniform_buffer, camera_uniform_buffer_memory) = createBuffer(bufferSize
 			, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT  // FIXME: change back to uniform
 			, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-			, &camera_uniform_buffer
-			, &camera_uniform_buffer_memory
 			, queue_family_indices.graphics_family
 			, queue_family_indices.compute_family);
 	}
@@ -1249,18 +1247,13 @@ void _VulkanRenderer_Impl::createLights()
 	pointlight_buffer_size = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(int);
 	pointlight_buffer_size = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(glm::vec4); // vec4 rather than int for padding
 
-	createBuffer(pointlight_buffer_size
+	std::tie(lights_staging_buffer, lights_staging_buffer_memory) = createBuffer(pointlight_buffer_size
 		, VK_BUFFER_USAGE_TRANSFER_SRC_BIT // to be transfered from
-		, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-		, &lights_staging_buffer
-		, &lights_staging_buffer_memory);
+		, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-	createBuffer(pointlight_buffer_size
+	std::tie(pointlight_buffer, pointlight_buffer_memory) = createBuffer(pointlight_buffer_size
 		, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT  // FIXME: change back to uniform
-		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-		, &pointlight_buffer
-		, &pointlight_buffer_memory
-	); // using barrier to sync
+		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT); // using barrier to sync
 }
 
 void _VulkanRenderer_Impl::createDescriptorPool()
@@ -1285,10 +1278,19 @@ void _VulkanRenderer_Impl::createDescriptorPool()
 	//poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 	// TODO: use VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT so I can create a VKGemoetryClass
 
-	if (vkCreateDescriptorPool(graphics_device, &pool_info, nullptr, &descriptor_pool) != VK_SUCCESS)
+	VkDescriptorPool pool;
+	if (vkCreateDescriptorPool(graphics_device, &pool_info, nullptr, &pool) != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to create descriptor pool!");
 	}
+
+	descriptor_pool = VRaii<VkDescriptorPool>(
+		pool,
+		[device = this->device](auto& obj)
+		{
+			device.destroyDescriptorPool(obj);
+		}
+	);
 }
 
 void _VulkanRenderer_Impl::createSceneObjectDescriptorSet()
@@ -1297,7 +1299,7 @@ void _VulkanRenderer_Impl::createSceneObjectDescriptorSet()
 	VkDescriptorSetLayout layouts[] = { object_descriptor_set_layout.get() };
 	VkDescriptorSetAllocateInfo alloc_info = {};
 	alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	alloc_info.descriptorPool = descriptor_pool;
+	alloc_info.descriptorPool = descriptor_pool.get();
 	alloc_info.descriptorSetCount = 1;
 	alloc_info.pSetLayouts = layouts;
 
@@ -1308,22 +1310,22 @@ void _VulkanRenderer_Impl::createSceneObjectDescriptorSet()
 
 	// refer to the uniform object buffer
 	VkDescriptorBufferInfo buffer_info = {};
-	buffer_info.buffer = object_uniform_buffer;
+	buffer_info.buffer = object_uniform_buffer.get();
 	buffer_info.offset = 0;
 	buffer_info.range = sizeof(SceneObjectUbo);
 
 	VkDescriptorImageInfo image_info = {};
 	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	image_info.imageView = texture_image_view;
-	image_info.sampler = texture_sampler;
+	image_info.imageView = texture_image_view.get();
+	image_info.sampler = texture_sampler.get();
 
 	VkDescriptorImageInfo normalmap_info = {};
 	normalmap_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	normalmap_info.imageView = normalmap_image_view;
-	normalmap_info.sampler = texture_sampler;
+	normalmap_info.imageView = normalmap_image_view.get();
+	normalmap_info.sampler = texture_sampler.get();
 
 	VkDescriptorBufferInfo lights_buffer_info = {};
-	lights_buffer_info.buffer = pointlight_buffer;
+	lights_buffer_info.buffer = pointlight_buffer.get();
 	lights_buffer_info.offset = 0;
 	lights_buffer_info.range = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(int);
 
@@ -1514,7 +1516,7 @@ void _VulkanRenderer_Impl::createGraphicsCommandBuffers()
 	// Free old command buffers, if any
 	if (command_buffers.size() > 0)
 	{
-		vkFreeCommandBuffers(graphics_device, command_pool, (uint32_t)command_buffers.size(), command_buffers.data());
+		vkFreeCommandBuffers(graphics_device, command_pool.get(), (uint32_t)command_buffers.size(), command_buffers.data());
 	}
 	command_buffers.clear();
 
@@ -1522,7 +1524,7 @@ void _VulkanRenderer_Impl::createGraphicsCommandBuffers()
 
 	VkCommandBufferAllocateInfo alloc_info = {};
 	alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	alloc_info.commandPool = command_pool;
+	alloc_info.commandPool = command_pool.get();
 	alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	// primary: can be submitted to a queue but cannot be called from other command buffers
 	// secondary: can be called by others but cannot be submitted to a queue
@@ -1567,20 +1569,20 @@ void _VulkanRenderer_Impl::createGraphicsCommandBuffers()
 				tile_count_per_row, tile_count_per_col,
 				debug_view_index
 			};
-			vkCmdPushConstants(command_buffers[i], pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pco), &pco);
+			vkCmdPushConstants(command_buffers[i], pipeline_layout.get(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pco), &pco);
 
-			vkCmdBindPipeline(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
+			vkCmdBindPipeline(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline.get());
 
 			// bind vertex buffer
-			VkBuffer vertex_buffers[] = { vertex_buffer };
+			VkBuffer vertex_buffers[] = { vertex_buffer.get()};
 			VkDeviceSize offsets[] = { 0 };
 			vkCmdBindVertexBuffers(command_buffers[i], 0, 1, vertex_buffers, offsets);
 			//vkCmdBindIndexBuffer(command_buffers[i], index_buffer, 0, VK_INDEX_TYPE_UINT16);
-			vkCmdBindIndexBuffer(command_buffers[i], index_buffer, 0, VK_INDEX_TYPE_UINT32);
+			vkCmdBindIndexBuffer(command_buffers[i], index_buffer.get(), 0, VK_INDEX_TYPE_UINT32);
 
 			std::array<VkDescriptorSet, 4> descriptor_sets = { object_descriptor_set, camera_descriptor_set, light_culling_descriptor_set, intermediate_descriptor_set };
 			vkCmdBindDescriptorSets(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS
-				, pipeline_layout, 0, static_cast<uint32_t>(descriptor_sets.size()), descriptor_sets.data(), 0, nullptr);
+				, pipeline_layout.get(), 0, static_cast<uint32_t>(descriptor_sets.size()), descriptor_sets.data(), 0, nullptr);
 			// TODO: better to store vertex buffer and index buffer in a single VkBuffer
 
 
@@ -1588,7 +1590,7 @@ void _VulkanRenderer_Impl::createGraphicsCommandBuffers()
 			vkCmdDrawIndexed(command_buffers[i], (uint32_t)vertex_indices.size(), 1, 0, 0, 0);
 
 			vkCmdEndRenderPass(command_buffers[i]);
-			recordTransitImageLayout(command_buffers[i], pre_pass_depth_image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+			recordTransitImageLayout(command_buffers[i], pre_pass_depth_image.get(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
 		}
 
@@ -1634,10 +1636,19 @@ void _VulkanRenderer_Impl::createSemaphores()
 void _VulkanRenderer_Impl::createComputePipeline()
 {
 	// TODO: I think I should have it as a member
-	auto compute_queue_family_index = QueueFamilyIndices::findQueueFamilies(physical_device, vulkan_context.window_surface).compute_family;
+	auto compute_queue_family_index = queue_family_indices.compute_family;
 
 	// Step 1: Create Pipeline
 	{
+		auto raii_pipeline_layout_deleter = [device = this->device](auto & obj)
+		{
+			device.destroyPipelineLayout(obj);
+		};
+		auto raii_pipeline_deleter = [device = this->device](auto & obj)
+		{
+			device.destroyPipeline(obj);
+		};
+
 		VkPushConstantRange push_constant_range = {};
 		push_constant_range.offset = 0;
 		push_constant_range.size = sizeof(PushConstantObject);
@@ -1651,27 +1662,31 @@ void _VulkanRenderer_Impl::createComputePipeline()
 		pipeline_layout_info.pushConstantRangeCount = 1; 
 		pipeline_layout_info.pPushConstantRanges = &push_constant_range; 
 
-		vulkan_util::checkResult(vkCreatePipelineLayout(graphics_device, &pipeline_layout_info, nullptr, &compute_pipeline_layout));
+		VkPipelineLayout temp_layout;
+		vulkan_util::checkResult(vkCreatePipelineLayout(graphics_device, &pipeline_layout_info, nullptr, &temp_layout));
+		compute_pipeline_layout = VRaii<VkPipelineLayout>(temp_layout, raii_pipeline_layout_deleter);
 
 		auto light_culling_comp_shader_code = util::readFile(util::getContentPath("light_culling_comp.spv"));
 		
-		VDeleter<VkShaderModule> comp_shader_module{ graphics_device, vkDestroyShaderModule };
-		createShaderModule(light_culling_comp_shader_code, &comp_shader_module);
+		auto comp_shader_module = createShaderModule(light_culling_comp_shader_code);
 		VkPipelineShaderStageCreateInfo comp_shader_stage_info = {};
 		comp_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		comp_shader_stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-		comp_shader_stage_info.module = comp_shader_module;
+		comp_shader_stage_info.module = comp_shader_module.get();
 		comp_shader_stage_info.pName = "main";
 		
 		VkComputePipelineCreateInfo pipeline_create_info;
 		pipeline_create_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
 		pipeline_create_info.stage = comp_shader_stage_info;
-		pipeline_create_info.layout = compute_pipeline_layout;
+		pipeline_create_info.layout = compute_pipeline_layout.get();
 		pipeline_create_info.pNext = nullptr;
 		pipeline_create_info.flags = 0;
 		pipeline_create_info.basePipelineHandle = VK_NULL_HANDLE; // not deriving from existing pipeline
 		pipeline_create_info.basePipelineIndex = -1; // Optional
-		vulkan_util::checkResult(vkCreateComputePipelines(graphics_device, VK_NULL_HANDLE, 1, &pipeline_create_info, nullptr, &compute_pipeline));
+
+		VkPipeline temp_pipeline;
+		vulkan_util::checkResult(vkCreateComputePipelines(graphics_device, VK_NULL_HANDLE, 1, &pipeline_create_info, nullptr, &temp_pipeline));
+		compute_pipeline = VRaii<VkPipeline>(temp_pipeline, raii_pipeline_deleter);
 	};
 
 	// Step 2: create compute command pool
@@ -1680,7 +1695,15 @@ void _VulkanRenderer_Impl::createComputePipeline()
 		cmd_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 		cmd_pool_info.queueFamilyIndex = compute_queue_family_index;
 		cmd_pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-		vulkan_util::checkResult(vkCreateCommandPool(device, &cmd_pool_info, nullptr, &compute_command_pool));
+
+
+		compute_command_pool = VRaii<vk::CommandPool>(
+			device.createCommandPool(cmd_pool_info, nullptr),
+			[device = this->device](auto& obj)
+			{
+				device.destroyCommandPool(obj);
+			}
+		);
 	}
 }
 
@@ -1695,7 +1718,7 @@ void _VulkanRenderer_Impl::createLigutCullingDescriptorSet()
 		VkDescriptorSetLayout layouts[] = { light_culling_descriptor_set_layout.get() };
 		VkDescriptorSetAllocateInfo alloc_info = {};
 		alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-		alloc_info.descriptorPool = descriptor_pool;
+		alloc_info.descriptorPool = descriptor_pool.get();
 		alloc_info.descriptorSetCount = 1;
 		alloc_info.pSetLayouts = layouts;
 
@@ -1723,12 +1746,10 @@ void _VulkanRenderer_Impl::createLightVisibilityBuffer()
 
 	light_visibility_buffer_size = sizeof(_Dummy_VisibleLightsForTile) * tile_count_per_row * tile_count_per_col;
 
-	createBuffer(
+	std::tie(light_visibility_buffer, light_visibility_buffer_memory) = createBuffer(
 		light_visibility_buffer_size
 		, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
 		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-		, &light_visibility_buffer
-		, &light_visibility_buffer_memory
 	); // using barrier to sync
 
 	// Write desciptor set in compute shader
@@ -1819,7 +1840,7 @@ void _VulkanRenderer_Impl::createLightCullingCommandBuffer()
 			vk::AccessFlagBits::eShaderWrite,  // dstAccessMask
 			static_cast<uint32_t>(queue_family_indices.graphics_family),  // srcQueueFamilyIndex
 			static_cast<uint32_t>(queue_family_indices.compute_family),  // dstQueueFamilyIndex
-			static_cast<VkBuffer>(light_visibility_buffer),  // buffer
+			static_cast<vk::Buffer>(light_visibility_buffer.get()),  // buffer
 			0,  // offset
 			light_visibility_buffer_size  // size
 		);
@@ -1829,7 +1850,7 @@ void _VulkanRenderer_Impl::createLightCullingCommandBuffer()
 			vk::AccessFlagBits::eShaderWrite,  // dstAccessMask
 			static_cast<uint32_t>(queue_family_indices.graphics_family),  // srcQueueFamilyIndex
 			static_cast<uint32_t>(queue_family_indices.compute_family),  // dstQueueFamilyIndex
-			static_cast<VkBuffer>(pointlight_buffer),  // buffer
+			static_cast<vk::Buffer>(pointlight_buffer.get()),  // buffer
 			0,  // offset
 			pointlight_buffer_size  // size
 		);
@@ -1859,7 +1880,7 @@ void _VulkanRenderer_Impl::createLightCullingCommandBuffer()
 		PushConstantObject pco = { static_cast<int>(swap_chain_extent.width), static_cast<int>(swap_chain_extent.height), tile_count_per_row, tile_count_per_col };
 		command.pushConstants(compute_pipeline_layout.get(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(pco), &pco);
 
-		command.bindPipeline(vk::PipelineBindPoint::eCompute, static_cast<VkPipeline>(compute_pipeline));
+		command.bindPipeline(vk::PipelineBindPoint::eCompute, static_cast<VkPipeline>(compute_pipeline.get()));
 		command.dispatch(tile_count_per_row, tile_count_per_col, 1);
 
 
@@ -1870,7 +1891,7 @@ void _VulkanRenderer_Impl::createLightCullingCommandBuffer()
 			vk::AccessFlagBits::eShaderRead,  // dstAccessMask
 			static_cast<uint32_t>(queue_family_indices.compute_family), // srcQueueFamilyIndex
 			static_cast<uint32_t>(queue_family_indices.graphics_family),  // dstQueueFamilyIndex
-			static_cast<VkBuffer>(light_visibility_buffer),  // buffer
+			static_cast<vk::Buffer>(light_visibility_buffer.get()),  // buffer
 			0,  // offset
 			light_visibility_buffer_size  // size
 		);
@@ -1880,7 +1901,7 @@ void _VulkanRenderer_Impl::createLightCullingCommandBuffer()
 			vk::AccessFlagBits::eShaderRead,  // dstAccessMask
 			static_cast<uint32_t>(queue_family_indices.compute_family), // srcQueueFamilyIndex
 			static_cast<uint32_t>(queue_family_indices.graphics_family),  // dstQueueFamilyIndex
-			static_cast<VkBuffer>(pointlight_buffer),  // buffer
+			static_cast<vk::Buffer>(pointlight_buffer.get()),  // buffer
 			0,  // offset
 			pointlight_buffer_size  // size
 		);
@@ -1917,12 +1938,12 @@ void _VulkanRenderer_Impl::updateUniformBuffers(float deltatime)
 		ubo.cam_pos = cam_pos;
 
 		void* data;
-		vkMapMemory(graphics_device, camera_staging_buffer_memory, 0, sizeof(ubo), 0, &data);
+		vkMapMemory(graphics_device, camera_staging_buffer_memory.get(), 0, sizeof(ubo), 0, &data);
 		memcpy(data, &ubo, sizeof(ubo));
-		vkUnmapMemory(graphics_device, camera_staging_buffer_memory);
+		vkUnmapMemory(graphics_device, camera_staging_buffer_memory.get());
 
 		// TODO: maybe I shouldn't use single time buffer
-		copyBuffer(camera_staging_buffer, camera_uniform_buffer, sizeof(ubo));
+		copyBuffer(camera_staging_buffer.get(), camera_uniform_buffer.get(), sizeof(ubo));
 	}
 
 	// update light ubo
@@ -1939,11 +1960,11 @@ void _VulkanRenderer_Impl::updateUniformBuffers(float deltatime)
 
 		auto pointlights_size = sizeof(PointLight) * pointlights.size();
 		void* data;
-		vkMapMemory(graphics_device, lights_staging_buffer_memory, 0, pointlight_buffer_size, 0, &data);
+		vkMapMemory(graphics_device, lights_staging_buffer_memory.get(), 0, pointlight_buffer_size, 0, &data);
 		memcpy(data, &light_num, sizeof(int));
 		memcpy((char*)data + sizeof(glm::vec4), pointlights.data(), pointlights_size);
-		vkUnmapMemory(graphics_device, lights_staging_buffer_memory);
-		copyBuffer(lights_staging_buffer, pointlight_buffer, pointlight_buffer_size);
+		vkUnmapMemory(graphics_device, lights_staging_buffer_memory.get());
+		copyBuffer(lights_staging_buffer.get(), pointlight_buffer.get(), pointlight_buffer_size);
 	}
 }
 
@@ -2047,18 +2068,26 @@ void _VulkanRenderer_Impl::drawFrame()
 	}
 }
 
-void _VulkanRenderer_Impl::createShaderModule(const std::vector<char>& code, VkShaderModule* p_shader_module)
+VRaii<VkShaderModule> _VulkanRenderer_Impl::createShaderModule(const std::vector<char>& code)
 {
 	VkShaderModuleCreateInfo create_info = {};
 	create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 	create_info.codeSize = code.size();
 	create_info.pCode = (uint32_t*)code.data();
 
-	auto result = vkCreateShaderModule(graphics_device, &create_info, nullptr, p_shader_module);
+	VkShaderModule temp_sm;
+	auto result = vkCreateShaderModule(graphics_device, &create_info, nullptr, &temp_sm);
 	if (result != VK_SUCCESS)
 	{
 		throw std::runtime_error("failed to create shader module!");
 	}
+	return VRaii<VkShaderModule>(
+		temp_sm,
+		[device = this->device](auto& obj)
+		{
+			device.destroyShaderModule(obj);
+		}
+	);
 }
 
 VkSurfaceFormatKHR _VulkanRenderer_Impl::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& available_formats)
@@ -2137,8 +2166,8 @@ VkFormat _VulkanRenderer_Impl::findSupportedFormat(const std::vector<VkFormat>& 
 	throw std::runtime_error("Failed to find supported format!");
 }
 
-void _VulkanRenderer_Impl::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags property_bits
-	, VkBuffer* p_buffer, VkDeviceMemory* p_buffer_memory, int sharing_queue_family_index_a, int sharing_queue_family_index_b)
+std::tuple<VRaii<VkBuffer>, VRaii<VkDeviceMemory>> _VulkanRenderer_Impl::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags property_bits
+	, int sharing_queue_family_index_a, int sharing_queue_family_index_b)
 {
 	VkBufferCreateInfo buffer_info = {};
 	buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -2159,7 +2188,8 @@ void _VulkanRenderer_Impl::createBuffer(VkDeviceSize size, VkBufferUsageFlags us
 	}
 	buffer_info.flags = 0;
 
-	auto buffer_result = vkCreateBuffer(graphics_device, &buffer_info, nullptr, p_buffer);
+	VkBuffer buffer;
+	auto buffer_result = vkCreateBuffer(graphics_device, &buffer_info, nullptr, &buffer);
 
 	if (buffer_result != VK_SUCCESS)
 	{
@@ -2168,7 +2198,7 @@ void _VulkanRenderer_Impl::createBuffer(VkDeviceSize size, VkBufferUsageFlags us
 
 	// allocate memory for buffer
 	VkMemoryRequirements memory_req;
-	vkGetBufferMemoryRequirements(graphics_device, *p_buffer, &memory_req);
+	vkGetBufferMemoryRequirements(graphics_device, buffer, &memory_req);
 
 	VkMemoryAllocateInfo memory_alloc_info = {};
 	memory_alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -2177,18 +2207,32 @@ void _VulkanRenderer_Impl::createBuffer(VkDeviceSize size, VkBufferUsageFlags us
 		, property_bits
 		, physical_device);
 
-	auto memory_result = vkAllocateMemory(graphics_device, &memory_alloc_info, nullptr, p_buffer_memory);
+	VkDeviceMemory buffer_memory;
+	auto memory_result = vkAllocateMemory(graphics_device, &memory_alloc_info, nullptr, &buffer_memory);
 	if (memory_result != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to allocate buffer memory!");
 	}
 
 	// bind buffer with memory
-	auto bind_result = vkBindBufferMemory(graphics_device, *p_buffer, *p_buffer_memory, 0);
+	auto bind_result = vkBindBufferMemory(graphics_device, buffer, buffer_memory, 0);
 	if (bind_result != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to bind buffer memory!");
 	}
+
+	auto raii_buffer_deleter = [device = this->device](auto& obj)
+	{
+		device.destroyBuffer(obj);
+	};
+
+	auto raii_memory_deleter = [device = this->device](auto& obj)
+	{
+		device.freeMemory(obj);
+	};
+
+	return std::make_tuple(VRaii<VkBuffer>(buffer, raii_buffer_deleter)
+		, VRaii<VkDeviceMemory>(buffer_memory, raii_memory_deleter));
 }
 
 void _VulkanRenderer_Impl::copyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size)
@@ -2200,10 +2244,9 @@ void _VulkanRenderer_Impl::copyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer, 
 	endSingleTimeCommands(copy_command_buffer);
 }
 
-void _VulkanRenderer_Impl::createImage(uint32_t image_width, uint32_t image_height
+std::tuple<VRaii<VkImage>, VRaii<VkDeviceMemory>> _VulkanRenderer_Impl::createImage(uint32_t image_width, uint32_t image_height
 	, VkFormat format, VkImageTiling tiling
-	, VkImageUsageFlags usage, VkMemoryPropertyFlags memory_properties
-	, VkImage* p_vkimage, VkDeviceMemory* p_image_memory)
+	, VkImageUsageFlags usage, VkMemoryPropertyFlags memory_properties)
 {
 	VkImageCreateInfo image_info = {};
 	image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -2224,11 +2267,12 @@ void _VulkanRenderer_Impl::createImage(uint32_t image_width, uint32_t image_heig
 	image_info.samples = VK_SAMPLE_COUNT_1_BIT;
 	image_info.flags = 0; // there are flags for sparse image (well not the case)
 
-	if (vkCreateImage(graphics_device, &image_info, nullptr, p_vkimage) != VK_SUCCESS)
+
+	VkImage vkimage;
+	if (vkCreateImage(graphics_device, &image_info, nullptr, &vkimage) != VK_SUCCESS)
 	{
 		throw std::runtime_error("failed to create image!");
 	}
-	VkImage vkimage = *p_vkimage;
 
 	// allocate image memory
 	VkMemoryRequirements memory_req;
@@ -2241,12 +2285,25 @@ void _VulkanRenderer_Impl::createImage(uint32_t image_width, uint32_t image_heig
 		, memory_properties
 		, physical_device);
 
-	if (vkAllocateMemory(graphics_device, &alloc_info, nullptr, p_image_memory) != VK_SUCCESS)
+	VkDeviceMemory memory;
+	if (vkAllocateMemory(graphics_device, &alloc_info, nullptr, &memory) != VK_SUCCESS)
 	{
 		throw std::runtime_error("failed to allocate image memory!");
 	}
 
-	vkBindImageMemory(graphics_device, vkimage, *p_image_memory, 0);
+	vkBindImageMemory(graphics_device, vkimage, memory, 0);
+
+	auto raii_image_deleter = [device = this->device](auto& obj)
+	{
+		device.destroyImage(obj);
+	};
+	
+	auto raii_memory_deleter = [device = this->device](auto& obj)
+	{
+		device.freeMemory(obj);
+	};
+	
+	return std::make_tuple(VRaii<VkImage>(vkimage, raii_image_deleter), VRaii<VkDeviceMemory>(memory, raii_memory_deleter));
 }
 
 void _VulkanRenderer_Impl::copyImage(VkImage src_image, VkImage dst_image, uint32_t width, uint32_t height)
@@ -2265,6 +2322,7 @@ void _VulkanRenderer_Impl::transitImageLayout(VkImage image, VkImageLayout old_l
 	recordTransitImageLayout(command_buffer, image, old_layout, new_layout);
 
 	endSingleTimeCommands(command_buffer);
+
 }
 
 void _VulkanRenderer_Impl::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspect_mask, VkImageView* p_image_view)
@@ -2293,7 +2351,15 @@ void _VulkanRenderer_Impl::createImageView(VkImage image, VkFormat format, VkIma
 	}
 }
 
-void _VulkanRenderer_Impl::loadImageFromFile(std::string path, VkImage * p_vkimage, VkDeviceMemory * p_image_memory, VkImageView * p_image_view)
+
+VRaii<VkImageView> _VulkanRenderer_Impl::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspect_mask)
+{
+	VkImageView img_view;
+	createImageView(image, format, aspect_mask, &img_view);
+	return VRaii<VkImageView>(img_view, [device = this->device](auto& obj) {device.destroyImageView(obj); });
+}
+
+std::tuple<VRaii<VkImage>, VRaii<VkDeviceMemory>, VRaii<VkImageView>> _VulkanRenderer_Impl::loadImageFromFile(std::string path)
 {
 	// TODO: maybe move to vulkan_util or a VulkanDevice class
 
@@ -2312,47 +2378,51 @@ void _VulkanRenderer_Impl::loadImageFromFile(std::string path, VkImage * p_vkima
 	}
 
 	// create staging image memory
-	VDeleter<VkImage> staging_image{ graphics_device, vkDestroyImage };
-	VDeleter<VkDeviceMemory> staging_image_memory{ graphics_device, vkFreeMemory };
-	createImage(tex_width, tex_height
+	VRaii<VkImage> staging_image;
+	VRaii<VkDeviceMemory> staging_image_memory;
+	std::tie(staging_image, staging_image_memory) = createImage(
+		tex_width, tex_height
 		, VK_FORMAT_R8G8B8A8_UNORM
 		, VK_IMAGE_TILING_LINEAR
 		, VK_IMAGE_USAGE_TRANSFER_SRC_BIT
 		, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-		, &staging_image, &staging_image_memory);
+	);
 
 	// copy image to staging memory
 	void* data;
-	vkMapMemory(graphics_device, staging_image_memory, 0, image_size, 0, &data);
+	vkMapMemory(graphics_device, staging_image_memory.get(), 0, image_size, 0, &data);
 	memcpy(data, pixels, (size_t)image_size);
-	vkUnmapMemory(graphics_device, staging_image_memory);
+	vkUnmapMemory(graphics_device, staging_image_memory.get());
 
 	// free image in memory
 	stbi_image_free(pixels);
 
+	VRaii<VkImage> image;
+	VRaii<VkDeviceMemory> image_memory;
 	// create texture image
-	createImage(tex_width, tex_height
+	std::tie(image, image_memory) = createImage(
+		tex_width, tex_height
 		, VK_FORMAT_R8G8B8A8_UNORM
 		, VK_IMAGE_TILING_OPTIMAL
 		, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
 		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-		, p_vkimage
-		, p_image_memory
 	);
 
 	// TODO: doing the steps asynchronously by using a single command buffer
 	auto command_buffer = beginSingleTimeCommands();
 
-	recordTransitImageLayout(command_buffer, staging_image, VK_IMAGE_LAYOUT_PREINITIALIZED, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-	recordTransitImageLayout(command_buffer, *p_vkimage, VK_IMAGE_LAYOUT_PREINITIALIZED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-	recordCopyImage(command_buffer, staging_image, *p_vkimage, tex_width, tex_height);
-	recordTransitImageLayout(command_buffer, *p_vkimage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	recordTransitImageLayout(command_buffer, staging_image.get(), VK_IMAGE_LAYOUT_PREINITIALIZED, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+	recordTransitImageLayout(command_buffer, image.get(), VK_IMAGE_LAYOUT_PREINITIALIZED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	recordCopyImage(command_buffer, staging_image.get(), image.get(), tex_width, tex_height);
+	recordTransitImageLayout(command_buffer, image.get(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	endSingleTimeCommands(command_buffer);
 
 
 	// Create image view
-	createImageView(*p_vkimage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT, p_image_view);
+	auto image_view = createImageView(image.get(), VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
+
+	return std::make_tuple(std::move(image), std::move(image_memory), std::move(image_view));
 }
 
 // create a temperorary command buffer for one-time use
@@ -2362,7 +2432,7 @@ VkCommandBuffer _VulkanRenderer_Impl::beginSingleTimeCommands()
 	VkCommandBufferAllocateInfo alloc_info = {};
 	alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	alloc_info.commandPool = command_pool;
+	alloc_info.commandPool = command_pool.get();
 	alloc_info.commandBufferCount = 1;
 
 	VkCommandBuffer command_buffer;
@@ -2391,7 +2461,7 @@ void _VulkanRenderer_Impl::endSingleTimeCommands(VkCommandBuffer command_buffer)
 	vkQueueWaitIdle(graphics_queue);
 
 	// free the temperorary command buffer
-	vkFreeCommandBuffers(graphics_device, command_pool, 1, &command_buffer);
+	vkFreeCommandBuffers(graphics_device, command_pool.get(), 1, &command_buffer);
 }
 
 void _VulkanRenderer_Impl::recordCopyBuffer(VkCommandBuffer command_buffer, VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size)

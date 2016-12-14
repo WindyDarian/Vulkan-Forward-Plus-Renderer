@@ -447,3 +447,54 @@ SwapChainSupportDetails SwapChainSupportDetails::querySwapChainSupport(VkPhysica
 
 	return details;
 }
+
+
+//std::tuple<VRaii<vk::Image>, VRaii<vk::DeviceMemory>> _VulkanRenderer_Impl::createImage(uint32_t image_width, uint32_t image_height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags memory_properties)
+//{
+//
+//	vk::ImageCreateInfo image_info = {};
+//	image_info.imageType = vk::ImageType::e2D;
+//	image_info.extent.width = image_width;
+//	image_info.extent.height = image_height;
+//	image_info.extent.depth = 1;
+//	image_info.mipLevels = 1;
+//	image_info.arrayLayers = 1;
+//	image_info.format = format; //VK_FORMAT_R8G8B8A8_UNORM;
+//	image_info.tiling = tiling; //VK_IMAGE_TILING_LINEAR;
+//								// VK_IMAGE_TILING_OPTIMAL is better if don't need to directly access memory
+//	image_info.initialLayout = vk::ImageLayout::ePreinitialized; // VK_IMAGE_LAYOUT_UNDEFINED for attachments like color/depth buffer
+//
+//	image_info.usage = usage; //VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+//	image_info.sharingMode = vk::SharingMode::eExclusive; // one queue family only
+//	image_info.samples = vk::SampleCountFlagBits::e1;
+//	image_info.flags = vk::ImageCreateFlags(); // there are flags for sparse image (well not the case)
+//
+//	vk::Image image = device.createImage(image_info, nullptr);
+//
+//	// allocate image memory
+//	VkMemoryRequirements memory_req;
+//	vkGetImageMemoryRequirements(graphics_device, image, &memory_req);
+//
+//	VkMemoryAllocateInfo alloc_info = {};
+//	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+//	alloc_info.allocationSize = memory_req.size;
+//	alloc_info.memoryTypeIndex = findMemoryType(memory_req.memoryTypeBits
+//		, memory_properties
+//		, physical_device);
+//
+//	vk::DeviceMemory image_memory = device.allocateMemory(alloc_info, nullptr);
+//
+//	device.bindImageMemory(image, image_memory, 0);
+//
+//	auto raii_image_deleter = [device = this->device](auto& obj)
+//	{
+//		device.destroyImage(obj);
+//	};
+//
+//	auto raii_memory_deleter = [device = this->device](auto& obj)
+//	{
+//		device.freeMemory(obj);
+//	};
+//
+//	return std::make_tuple(VRaii<vk::Image>(image, raii_image_deleter), VRaii<vk::DeviceMemory>(image_memory, raii_memory_deleter));
+//}

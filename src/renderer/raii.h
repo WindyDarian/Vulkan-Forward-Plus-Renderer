@@ -76,9 +76,9 @@ private:
 	}
 };
 
-// deprecated
-// This RAII class is used to hold Vulkan handles.
-// It will call deletef upon destruction or & operator
+ //deprecated
+ //This RAII class is used to hold Vulkan handles.
+ //It will call deletef upon destruction or & operator
 template <typename T>
 class VDeleter
 {
