@@ -4,10 +4,16 @@
 
 Forward+ (tiled forward) rendering program in Vulkan using compute shader to do light culling. This implementation is __~700%__ faster than regular forward renderer (also in Vulkan) under the condition of 200 lights.
 
-Members:
-* [Ruoyu Fan](http://windy.moe/portfolio)
-* [Xueyin Wan](https://github.com/xueyinw)
-
+**Team Members**
+* Ruoyu Fan
+ * [Website](http://windy.moe/portfolio)
+ * [LinkedIn](https://www.linkedin.com/in/ruoyuf)
+ * [Github](https://github.com/WindyDarian)
+* Xueyin Wan
+ * [Website](http://xueyin.me/)
+ * [Linkedin](https://www.linkedin.com/in/xueyin-wan)
+ * [Github](https://github.com/xueyinw)
+ 
 TODO: video
 
 | Render           | Heatmap          |
@@ -18,16 +24,21 @@ TODO: video
 |------------------|------------------|
 | ![](screenshots/heatmap2.jpg) | ![](screenshots/depth.jpg) |
 
-## Description
+# Description
 
-TODO
+TODO (add more screenshots)
 
 #### Frame Breakdown
 ![](documents/frame_breakdown.png)
 
 ![](documents/renderdoc_frame_breakdown.jpg)
 
-TODO
+# Demos
+
+TODO()
+
+# Performance Analysis
+
 
 #### Controls
 
@@ -37,7 +48,7 @@ W, S, A, D, Q, E: move camera
 Z: toggle debug view
 ```
 
-## Milestones
+# Milestones
 
 ### Milestone 3 (12/12/2016)
 * Forward+ pipeline:
@@ -63,7 +74,7 @@ Z: toggle debug view
   * lambert shading
 * Cross Platform using GLFW & CMake (Windows, Linux) 
 
-## How to Build
+# How to Build
 
 Use CMake to build the program.
 
@@ -89,7 +100,7 @@ make
 ```
 
 
-## Third-Party Credits
+# Third-Party Credits
 
 #### References
 * [Vulkan Tutorial by Alexander Overvoorde](https://vulkan-tutorial.com)
