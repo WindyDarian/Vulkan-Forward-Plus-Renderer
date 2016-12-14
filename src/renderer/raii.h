@@ -30,7 +30,7 @@ public:
 		cleanup();
 	}
 
-	const T& get() const
+	T& get()
 	{
 		return object;
 	}
@@ -76,6 +76,7 @@ private:
 	}
 };
 
+// deprecated
 // This RAII class is used to hold Vulkan handles.
 // It will call deletef upon destruction or & operator
 template <typename T>
@@ -120,7 +121,7 @@ public:
 		return object;
 	}
 
-	const T& get() const 
+	T& get() 
 	{
 		return object;
 	}
@@ -163,5 +164,3 @@ private:
 		object = VK_NULL_HANDLE;
 	}
 };
-
-

@@ -24,7 +24,7 @@ class _ShowBase_Impl
 {
 private:
 	GLFWwindow* window = createWindow();
-	VulkanRenderer context{window};
+	VulkanRenderer renderer{window};
 	Camera camera;
 	// for measurement
 	float total_time_past = 0.0f;
@@ -182,7 +182,7 @@ private:
 			if (z_pressed) // change debug view
 			{
 				z_pressed = false;
-				context.changeDebugViewIndex(context.getDebugViewIndex() + 1);
+				renderer.changeDebugViewIndex(renderer.getDebugViewIndex() + 1);
 			}
 
 			if (delta_time >= MIN_DELTA_TIME) //prevent underflow
@@ -191,8 +191,8 @@ private:
 				previous = current;
 			}
 
-			context.setCamera(camera.getViewMatrix(), camera.position);
-			context.requestDraw(delta_time);
+			renderer.setCamera(camera.getViewMatrix(), camera.position);
+			renderer.requestDraw(delta_time);
 			total_frames++;
 
 		}
@@ -202,14 +202,14 @@ private:
 		{
 			std::cout << "FPS: " << total_frames / total_time_past << std::endl;
 		}
-		context.cleanUp();
+		renderer.cleanUp();
 	}
 
 
 	void onResize(int width, int height)
 	{
 		if (width == 0 || height == 0) return;
-		context.resize(width, height);
+		renderer.resize(width, height);
 		framebuffer_size = { width, height };
 	}
 
