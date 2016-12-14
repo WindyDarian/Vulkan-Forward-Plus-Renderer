@@ -3,8 +3,8 @@
 
 #include "ShowBase.h"
 
-#include "renderer/VulkanContext.h"
-#include "Scene.h"
+#include "renderer/VulkanRenderer.h"
+#include "scene.h"
 #include "util.h"
 
 #include <GLFW/glfw3.h>
@@ -24,7 +24,7 @@ class _ShowBase_Impl
 {
 private:
 	GLFWwindow* window = createWindow();
-	VulkanContext context{window};
+	VulkanRenderer context{window};
 	Camera camera;
 	// for measurement
 	float total_time_past = 0.0f;

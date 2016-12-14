@@ -8,13 +8,13 @@
 #include <memory>
 
 struct GLFWwindow;
-class _VulkanContext_Impl;
+class _VulkanRenderer_Impl;
 
-class VulkanContext
+class VulkanRenderer
 {
 public:
-	VulkanContext(GLFWwindow* window);
-	~VulkanContext();
+	VulkanRenderer(GLFWwindow* window);
+	~VulkanRenderer();
 
 	int getDebugViewIndex() const;
 
@@ -25,11 +25,11 @@ public:
 
 	void setCamera(const glm::mat4 & view, const glm::vec3 campos);
 
-	VulkanContext(const VulkanContext&) = delete;
-	VulkanContext& operator= (const VulkanContext&) = delete;
-	VulkanContext(VulkanContext&&) = delete;
-	VulkanContext& operator= (VulkanContext&&) = delete;
+	VulkanRenderer(const VulkanRenderer&) = delete;
+	VulkanRenderer& operator= (const VulkanRenderer&) = delete;
+	VulkanRenderer(VulkanRenderer&&) = delete;
+	VulkanRenderer& operator= (VulkanRenderer&&) = delete;
 
 private:
-	std::unique_ptr<_VulkanContext_Impl> p_impl;
+	std::unique_ptr<_VulkanRenderer_Impl> p_impl;
 };

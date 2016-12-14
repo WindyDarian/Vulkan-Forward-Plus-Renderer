@@ -20,21 +20,25 @@ include_directories("${GLFW_ROOT_DIR}/include")
 # Find our Vulkan!
 find_package(Vulkan REQUIRED)
 
-
+# Note: trying to write files in dependency order
 set(SOURCE_FILES
-    "src/main.cpp"
+    "src/main.cpp" 
     "src/third_party.cpp"
-    "src/renderer/vulkan_util.h"
-    "src/renderer/vulkan_util.cpp"
-    "src/renderer/VDeleter.h"
-    "src/renderer/VulkanContext.cpp"
-    "src/renderer/VulkanContext.h"
     "src/util.h"
     "src/util.cpp"
+    "src/scene.h"
+    "src/scene.cpp"
+    "src/renderer/raii.h"
+    "src/renderer/vulkan_util.h"
+    "src/renderer/vulkan_util.cpp"
+    "src/renderer/context.h"
+    "src/renderer/context.cpp"
+    "src/renderer/model.h"
+    "src/renderer/model.cpp"
+    "src/renderer/VulkanRenderer.h"
+    "src/renderer/VulkanRenderer.cpp"
     "src/ShowBase.h"
     "src/ShowBase.cpp"
-    "src/Scene.h"
-    "src/Scene.cpp"
     )
 
 add_executable(${CMAKE_PROJECT_NAME} ${SOURCE_FILES})
