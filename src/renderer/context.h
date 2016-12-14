@@ -64,7 +64,7 @@ public:
 
 	vk::Device getDevice()
 	{
-		return device;
+		return graphics_device.get();
 	}
 
 	vk::Queue getGraphicsQueue()
@@ -91,16 +91,16 @@ private:
 
 	GLFWwindow* window;
 
-	VDeleter<VkInstance> instance{ vkDestroyInstance };
-	VDeleter<VkDebugReportCallbackEXT> callback{ instance, DestroyDebugReportCallbackEXT };
-	VDeleter<VkDevice> graphics_device{ vkDestroyDevice }; //logical device
-	VDeleter<VkSurfaceKHR> window_surface{ instance, vkDestroySurfaceKHR };
+	VRaii<vk::Instance> instance;
+	VRaii<vk::DebugReportCallbackEXT> callback;
+	VRaii<vk::Device> graphics_device; //logical device
+	VRaii<vk::SurfaceKHR> window_surface;
+	//VDeleter<VkSurfaceKHR> window_surface{ instance, vkDestroySurfaceKHR };
 
 	QueueFamilyIndices queue_family_indices;
 	VkPhysicalDevice physical_device;
-	vk::Device device; // vulkan.hpp wraper for graphics_device, maybe I should migrate all code to vulkan-hpp
 	vk::Queue graphics_queue;
-	VkQueue present_queue;
+	vk::Queue present_queue;
 	vk::Queue compute_queue;
 
 private:

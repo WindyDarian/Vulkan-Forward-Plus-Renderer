@@ -8,6 +8,8 @@
 #include <tiny_obj_loader.h>
 
 #include <unordered_map>
+#include <vector>
+#include <string>
 
 namespace std {
 	// hash function for Vertex
@@ -22,7 +24,10 @@ namespace std {
 
 struct MeshMaterialGroup // grouped by material
 {
-	
+	std::vector<util::Vertex> vertices;
+	std::vector<util::Vertex::index_t> vertex_indices;
+	std::string albedo_map_path = "";
+	std::string normal_map_path = "";
 };
 
 void loadModel(const std::string& path)
