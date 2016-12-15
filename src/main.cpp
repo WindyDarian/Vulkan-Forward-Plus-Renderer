@@ -80,7 +80,7 @@ TestSceneConfiguration sponza_full_1000_large_lights
 	glm::vec3{ -15, -5, -5 },  // min_light_pos
 	glm::vec3{ 15, 20, 5 },  // max_light_pos
 	10.0f,  // radius
-	10000,  // light num
+	1000,  // light num
 	glm::vec3{ 12.7101822f, 1.87933588f, -0.0333303586f },  // camera position
 	glm::quat{ 0.717312694f, -0.00208670134f, 0.696745396f, 0.00202676491f }   // camera rotation
 };
@@ -150,7 +150,7 @@ int main()
 	auto result = EXIT_SUCCESS;
 
 	// change this to test different scenes
-	getGlobalTestSceneConfiguration() = rungholt_20000_lights;
+	getGlobalTestSceneConfiguration() = sponza_full_1000_large_lights;
 
 	try
 	{

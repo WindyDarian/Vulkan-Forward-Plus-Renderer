@@ -1134,7 +1134,6 @@ void _VulkanRenderer_Impl::createLights()
 	//  (given that the lights are moving)
 	auto light_num = static_cast<int>(pointlights.size());
 
-	pointlight_buffer_size = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(int);
 	pointlight_buffer_size = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(glm::vec4); // vec4 rather than int for padding
 
 	std::tie(lights_staging_buffer, lights_staging_buffer_memory) = utility.createBuffer(pointlight_buffer_size
@@ -1797,7 +1796,7 @@ void _VulkanRenderer_Impl::updateUniformBuffers(float deltatime)
 	// update light ubo
 	{
 		auto light_num = static_cast<int>(pointlights.size());
-		VkDeviceSize bufferSize = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(int);
+		VkDeviceSize bufferSize = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(glm::vec4);
 
 		for (int i = 0; i < light_num; i++) {
 			pointlights[i].pos += glm::vec3(0, 3.0f, 0) * deltatime;
