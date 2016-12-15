@@ -4,7 +4,7 @@
 
 In this project, we created a Forward Plus (tiled forward) renderer in Vulkan using compute shader to deal with light culling. 
 
-Our implementation is __~700%__ faster than regular forward renderer (tested in Vulkan) under the condition of 200 lights.
+Our implementation is __~1000%__ faster than regular forward renderer (tested in Vulkan) under the condition of 200 lights.
 
 Yes, Vulkan is really powerful! We learned about Vulkan at SIGGRAPH 2016 at Anaheim, and decided to dive into it at our final project. We learned a lot from [Alexander Overvoorde's](https://vulkan-tutorial.com/) Vulkan Tutorial, great resource! Thanks so much! 
 
