@@ -1,10 +1,12 @@
 # VFPR - a Vulkan Forward Plus Renderer
 
-**A final project for University of Pennsylvania, CIS 565: GPU Programming and Architecture**
+### A final project for University of Pennsylvania, CIS 565: GPU Programming and Architecture
 
-We created a Forward+ (tiled forward) renderer in Vulkan using compute shader to deal with light culling. 
+In this project, we created a Forward Plus (tiled forward) renderer in Vulkan using compute shader to deal with light culling. 
 
 Our implementation is __~700%__ faster than regular forward renderer (tested in Vulkan) under the condition of 200 lights.
+
+Let us give you a very detailed introduction about our project.  :)
 
 **Team Members**
 * Ruoyu Fan
@@ -15,6 +17,8 @@ Our implementation is __~700%__ faster than regular forward renderer (tested in 
  * [Website](http://xueyin.me/)
  * [Linkedin](https://www.linkedin.com/in/xueyin-wan)
  * [Github](https://github.com/xueyinw)
+
+**Tested on: Windows 10 x64, i7-6700K @ 4.00GHz 16GB, GTX 970 4096MB (Personal Desktop)**
  
 # Overview of Forward Plus Technique
 Our ideas of this cool renderer are from this amazing paper: [Forward+: Bringing Deferred Lighting to the Next Level](https://takahiroharada.files.wordpress.com/2015/04/forward_plus.pdf). Thanks so much for the incredible authors!
@@ -23,7 +27,7 @@ Forward plus actually is an extension to traditional forward rendering. In forwa
 
 Forward plus extends the forward rendering pipeline by adding a light-culling stage before final shading. Basically this pipeline consists of three stages: depth prepass, light culling, and final shading. We will share more about these stages immediately combined with our Vulkan structure. The advantage of this method is that the scene could be rendered with many lights by culling, and storing only lights that contribute to the tile. Definitely a cool technique, right? :)
 
-Now, let us introduces these three stages in the basic forward plus renderer. In our project, since we use Vulkan, we create three command buffers for each single step.
+Now, let us introduce these three stages in our basic forward plus renderer. In our project, since we use Vulkan, we create three command buffers for each single step.
 
 * Step 1: Depth Pre-pass
 
@@ -46,11 +50,9 @@ It is noticable that in Vulkan, we add a compute shader for this stage between r
 Lastly, we created another renderpass for final shading, which accumulates all the lights in the light list we calculated for each tile, then we do the final shading based on the results.
 For loading more materials, we run the pipeline for each material group to enable the full scene of sponza.
 
+# Live Video
 
-
- 
-TODO: video
-
+# Debug Views
 | Render           | Heatmap          |
 |------------------|------------------|
 | ![](screenshots/render.jpg) | ![](screenshots/heatmap.jpg) |
@@ -68,12 +70,44 @@ TODO (add more screenshots)
 
 ![](documents/renderdoc_frame_breakdown.jpg)
 
-# Demos
-
-TODO()
-
 # Performance Analysis
 
+## Forward VS Forward Plus
+
+## Tile Size 
+
+## Light Num
+
+## Light Per Tile
+
+## Light Radius
+
+
+# Install and Build Instructions
+
+Use CMake to build the program.
+
+#### Windows
+
+1. Make sure you have Vulkan SDK and Visual Studio 2015 or up, then:
+```
+mkdir build
+cd build
+cmake-gui ..
+```
+2. And `Configure`(select `"Visual Studio 2015 x64"`), `Generate`, then you have Visual Studio project files.
+
+3. Set `vfpr` as startup project and build solution
+
+
+#### Linux
+Make sure `VULKAN_SDK` is set to `x86_64` folder under Vulkan SDK path and you have `LD_LIBRARY_PATH` and `VK_LAYER_PATH` set by running `source ./setup-env.sh` at Vulkan SDK folder, and then
+```
+mkdir build
+cd build
+cmake ..
+make
+```
 
 #### Controls
 
@@ -82,6 +116,7 @@ Pressing RMB and move cursor: rotate camera
 W, S, A, D, Q, E: move camera
 Z: toggle debug view
 ```
+
 
 # Milestones : How we finish our project step by step :)
 
@@ -111,34 +146,11 @@ Z: toggle debug view
 
 ### Fianl Milestone (12/15/2016)
 * Make Forward+ Renderer powerful!
-  * Add Load Model Feature, which supports multiple materials and full version of Sponza Model
+  
+  * Add Load Model Feature, which supports multiple materials and full version of Sponza Model
   * Refactor code to be clean and documented :)
-  * Detailed Performance Analysis
+  * Polished Readme and Performance Analysis
   
-# How to Build
-
-Use CMake to build the program.
-
-#### Windows
-1. Make sure you have Vulkan SDK and Visual Studio 2015 or up, then:
-```
-mkdir build
-cd build
-cmake-gui ..
-```
-2. And `Configure`(select `"Visual Studio 2015 x64"`), `Generate`, then you have Visual Studio project files.
-
-3. Set `vfpr` as startup project and build solution
-
-
-#### Linux
-Make sure `VULKAN_SDK` is set to `x86_64` folder under Vulkan SDK path and you have `LD_LIBRARY_PATH` and `VK_LAYER_PATH` set by running `source ./setup-env.sh` at Vulkan SDK folder, and then
-```
-mkdir build
-cd build
-cmake ..
-make
-```
 
 
 # Third-Party Credits
