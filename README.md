@@ -47,14 +47,21 @@ As we mentioned above, the depth map generated from the depth prepass stage is u
 
 It is noticable that in Vulkan, we add a compute shader for this stage between renderpass one (depth prepass) and renderpass two (final shading).
 
+![](screenshots/heatmap2.jpg)
+
+![](screenshots/heatmap.jpg)
+
 * Step 3: Light Accumulation and Final Shading
 
 Lastly, we created another renderpass for final shading, which accumulates all the lights in the light list we calculated for each tile, then we do the final shading based on the results.
 For loading more materials, we run the pipeline for each material group to enable the full scene of sponza.
 
+![](screenshots/render.jpg)
+
 # Live Video
 
 # Debug Views
+
 | Render           | Heatmap          |
 |------------------|------------------|
 | ![](screenshots/render.jpg) | ![](screenshots/heatmap.jpg) |
@@ -65,16 +72,22 @@ For loading more materials, we run the pipeline for each material group to enabl
 
 For the heatmap part, if the tile in the image is lighter than other places, that means more lights will effect its bounding frustum. 
 
-# Description
-
-TODO (add more screenshots)
-
 #### Frame Breakdown
 ![](documents/frame_breakdown.png)
 
 ![](documents/renderdoc_frame_breakdown.jpg)
 
 # Performance Analysis
+
+In our analysis, we use two scenes
+
+### Sponza scene:  262,267 triangles, 145,186 vertices
+
+![](screenshots/sponza.gif)
+
+### Rungholt scene: 5,815,868 triangles, 3,289,722 vertices
+
+![](screenshots/rungholt.gif)
 
 ## Forward VS Forward Plus
 
@@ -142,7 +155,7 @@ We do our test using Full Version Sponza scene, with 1000 small lights (radius i
 
 ![](documents/Charts/different_tile_size.PNG)
 
-It is worth mentioning that with Vulkan, the fps is really high, for the different tile sizes: 8x8, 16x16, 32x32, 64x64, 128x128, the fps are correspondingly 147.49, 203.66, 211.57, 184.84, 131.58. 
+It is worth mentioning that with Vulkan, the FPS is really high, for the different tile sizes: 8x8, 16x16, 32x32, 64x64, 128x128, the FPS are correspondingly 147.49, 203.66, 211.57, 184.84, 131.58. 
 
 How to choose our default tile size? We know that in Vulkan, if the tile size is too small, it will cause huge amount of computations during the culling process, since the tile is small, and the frustums as a result are a lot more. 
 But if we increase the tile size to some extent, it will definitely cause each thread to do a huge amount of computations than small tile sizes, which is not optimized as well.
@@ -172,7 +185,7 @@ The second is the SSBO (Shader Storage Buffer Object) Comparison:
 
 We can see that in this comparison,  we find big difference. When there are 63 lights per tile, the SSBO size is 2,073,600 bytes. But when there are 1023 lights per tile, the SSBO size is 33,145,200 bytes. 
 
-As for graphics card, the memory is not that large, so after this comparison, we find that we better choose small lights per time, which could save a lot of memory, at the same time keep a high fps.
+As for graphics card, the memory is not that large, so after this comparison, we find that we better choose small lights per time, which could save a lot of memory, at the same time keep a high FPS.
 
 # Install and Build Instructions
 
@@ -240,9 +253,8 @@ Z: toggle debug view
   
   * Add Load Model Feature, which supports multiple materials and full version of Sponza Model
   * Refactor code to be clean and documented :)
+  * Compared between Sponza Scene and Rungholt Scene
   * Polished Readme and Performance Analysis
-  
-
 
 # Third-Party Credits
 
