@@ -14,6 +14,30 @@ Forward+ (tiled forward) rendering program in Vulkan using compute shader to do 
  * [Linkedin](https://www.linkedin.com/in/xueyin-wan)
  * [Github](https://github.com/xueyinw)
  
+# Overview of Forward Plus Technique
+Our ideas of this cool renderer are from this amazing paper: [Forward+: Bringing Deferred Lighting to the Next Level](https://takahiroharada.files.wordpress.com/2015/04/forward_plus.pdf). Thanks so much for these incredible authors!
+
+Forward plus actually is an extension to traditional forward rendering. In forward rendering, it normally limits the number of lights to be valued when shading, which also limits the visibility computation. 
+
+Forward plus extends the forward rendering pipeline by adding a light-culling stage before final shading. Basically this pipeline consists of three stages: depth prepass, light culling, and final shading. We will share more about these stages immediately combined with our Vulkan structure. The advantage of this method is that the scene could be rendered with many lights by culling, and storing only lights that contribute to the tile. Definitely a cool technique, right? :)
+
+Now, let us introduces these three stages in the basic forward plus renderer. In our project, since we use Vulkan, we create three command buffers for each single step.
+
+1. Depth Pre-pass
+
+We inplemented this step by creating a pipeline without fragment shader in Vulkan. This enables depth-write and depth test.
+
+![](screenshots/depth.jpg)
+
+As the picture above shows, this will output a depth map. Which could be used as an input for light culling stage.
+    
+2. Light Culling
+
+3. Light Accumulation and Final Shading
+
+
+
+ 
 TODO: video
 
 | Render           | Heatmap          |
