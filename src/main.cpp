@@ -150,7 +150,7 @@ int main()
 	auto result = EXIT_SUCCESS;
 
 	// change this to test different scenes
-	getGlobalTestSceneConfiguration() = sponza_full_1000_large_lights;
+	getGlobalTestSceneConfiguration() = sponza_full_1000_small_lights;
 
 	try
 	{

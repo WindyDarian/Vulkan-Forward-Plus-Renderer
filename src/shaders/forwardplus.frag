@@ -115,8 +115,9 @@ void main()
         if (push_constants.debugview_index == 2)
         {
 			//heat map debug view
-			float intensity = float(light_visiblities[tile_index].count) / MAX_POINT_LIGHT_PER_TILE;
-			out_color = vec4(vec3(intensity * 0.62, intensity * 0.13, intensity * 0.94), 1.0) ; //light culling debug
+			float intensity = float(light_visiblities[tile_index].count) / 64;
+            out_color = vec4(vec3(intensity), 1.0) ; //light culling debug
+			//out_color = vec4(vec3(intensity * 0.62, intensity * 0.13, intensity * 0.94), 1.0) ; //light culling debug
 			//float minimum = 0.0;
 			//float maximum = 1.0;
 			//float ratio = 2 * (intensity - minimum) / (maximum - minimum);
@@ -168,7 +169,7 @@ void main()
     //heat map with render debug view
     if (push_constants.debugview_index == 1)
     {
-        float intensity = float(light_visiblities[tile_index].count) / (MAX_POINT_LIGHT_PER_TILE / 2.0);
+        float intensity = float(light_visiblities[tile_index].count) / (64 / 2.0);
         out_color = vec4(vec3(intensity, intensity * 0.5, intensity * 0.5) + illuminance * 0.25, 1.0) ; //light culling debug
         return;
     }
