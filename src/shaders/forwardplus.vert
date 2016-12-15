@@ -32,13 +32,14 @@ out gl_PerVertex
 void main()
 {
     //todo: calculate them in cpu...
-    mat4 mvp = camera.projview * transform.model;
+	vec4 world_pos = transform.model * vec4(in_position, 1.0);
+	
     mat4 invtransmodel =  transpose(inverse(transform.model));
     //gl_Position = vec4(positions[gl_VertexIndex], 0.0, 1.0);
 
-    gl_Position = mvp * vec4(in_position, 1.0);
+    gl_Position = camera.projview * world_pos;
     frag_color = in_color;
     frag_tex_coord = in_tex_coord;
     frag_normal = normalize((invtransmodel * vec4(in_normal, 0.0)).xyz);
-    frag_pos_world = in_position;
+    frag_pos_world = world_pos.xyz; // assuming transform.model is homogeneous;
 }

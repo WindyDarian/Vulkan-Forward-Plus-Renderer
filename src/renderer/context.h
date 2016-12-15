@@ -50,60 +50,77 @@ public:
 	VContext(const VContext&) = delete;
 	VContext& operator= (const VContext&) = delete;
 
-	std::pair<int, int> getWindowFrameBufferSize();
+	std::pair<int, int> getWindowFrameBufferSize() const;
 
-	auto getQueueFamilyIndices()
+	auto getQueueFamilyIndices() const
 	{
 		return queue_family_indices;
 	}
 
-	vk::PhysicalDevice getPhysicalDevice()
+	vk::PhysicalDevice getPhysicalDevice() const
 	{
 		return physical_device;
 	}
 
-	vk::Device getDevice()
+	const vk::PhysicalDeviceProperties& getPhysicalDeviceProperties() const
 	{
-		return device;
+		return physical_device_properties;
 	}
 
-	vk::Queue getGraphicsQueue()
+	vk::Device getDevice() const
+	{
+		return graphics_device.get();
+	}
+
+	vk::Queue getGraphicsQueue() const
 	{
 		return graphics_queue;
 	}
 
-	vk::Queue getPresentQueue()
+	vk::Queue getPresentQueue() const
 	{
 		return present_queue;
 	}
 
-	vk::Queue getComputeQueue()
+	vk::Queue getComputeQueue() const
 	{
 		return compute_queue;
 	}
 
-	vk::SurfaceKHR getWindowSurface()
+	vk::SurfaceKHR getWindowSurface() const
 	{
 		return window_surface.get();
+	}
+
+	vk::CommandPool getGraphicsCommandPool() const
+	{
+		return graphics_queue_command_pool.get();
+	}
+
+	vk::CommandPool getComputeCommandPool() const
+	{
+		return compute_queue_command_pool.get();
 	}
 
 private:
 
 	GLFWwindow* window;
 
-	VDeleter<VkInstance> instance{ vkDestroyInstance };
-	VDeleter<VkDebugReportCallbackEXT> callback{ instance, DestroyDebugReportCallbackEXT };
-	VDeleter<VkDevice> graphics_device{ vkDestroyDevice }; //logical device
-	VDeleter<VkSurfaceKHR> window_surface{ instance, vkDestroySurfaceKHR };
+	VRaii<vk::Instance> instance;
+	VRaii<vk::DebugReportCallbackEXT> callback;
+	VRaii<vk::Device> graphics_device; //logical device
+	VRaii<vk::SurfaceKHR> window_surface;
+	//VDeleter<VkSurfaceKHR> window_surface{ instance, vkDestroySurfaceKHR };
 
 	QueueFamilyIndices queue_family_indices;
 	VkPhysicalDevice physical_device;
-	vk::Device device; // vulkan.hpp wraper for graphics_device, maybe I should migrate all code to vulkan-hpp
 	vk::Queue graphics_queue;
-	VkQueue present_queue;
+	vk::Queue present_queue;
 	vk::Queue compute_queue;
 
-private:
+	VRaii<vk::CommandPool> graphics_queue_command_pool;
+	VRaii<vk::CommandPool> compute_queue_command_pool;
+	vk::PhysicalDeviceProperties physical_device_properties;
 
 	static void DestroyDebugReportCallbackEXT(VkInstance instance
 		, VkDebugReportCallbackEXT callback
@@ -120,6 +137,7 @@ private:
 	void pickPhysicalDevice();
 	void findQueueFamilyIndices();
 	void createLogicalDevice();
+	void createCommandPools();
 
 	void initVulkan()
 	{
@@ -129,6 +147,7 @@ private:
 		pickPhysicalDevice();
 		findQueueFamilyIndices();
 		createLogicalDevice();
+		createCommandPools();
 	}
 };
 

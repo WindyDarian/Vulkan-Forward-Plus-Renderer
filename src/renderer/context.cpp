@@ -39,7 +39,7 @@ VContext::VContext(GLFWwindow* window)
 
 VContext::~VContext() = default;
 
-std::pair<int, int> VContext::getWindowFrameBufferSize()
+std::pair<int, int> VContext::getWindowFrameBufferSize() const
 {
 	int framebuffer_width, framebuffer_height;
 	glfwGetFramebufferSize(window, &framebuffer_width, &framebuffer_height);
@@ -237,11 +237,13 @@ void VContext::createInstance()
 		instance_info.enabledLayerCount = 0;
 	}
 
-	VkResult result = vkCreateInstance(&instance_info, nullptr, &instance);
-	if (result != VK_SUCCESS)
-	{
-		throw std::runtime_error("failed to create instance!");
-	}
+	instance = VRaii<vk::Instance>{
+		vk::createInstance(instance_info, nullptr),
+		[](vk::Instance& obj)
+		{
+			obj.destroy();
+		}
+	};
 
 }
 
@@ -254,10 +256,19 @@ void VContext::setupDebugCallback()
 	createInfo.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
 	createInfo.pfnCallback = (PFN_vkDebugReportCallbackEXT)debugCallback;
 
-	if (CreateDebugReportCallbackEXT(instance, &createInfo, nullptr, &callback) != VK_SUCCESS)
+	VkDebugReportCallbackEXT temp_callback;
+	if (CreateDebugReportCallbackEXT(instance.get(), &createInfo, nullptr, &temp_callback) != VK_SUCCESS)
 	{
 		throw std::runtime_error("failed to set up debug callback!");
 	}
+
+	callback = VRaii<vk::DebugReportCallbackEXT>{
+		temp_callback,
+		[instance = this->instance.get()](auto& obj)
+		{
+			DestroyDebugReportCallbackEXT(instance, obj, nullptr);
+		}
+	};
 
 }
 
@@ -311,7 +322,7 @@ void VContext::pickPhysicalDevice()
 	// This object will be implicitly destroyed when the VkInstance is destroyed, so we don't need to add a delete wrapper.
 	VkPhysicalDevice physial_device = VK_NULL_HANDLE;
 	uint32_t device_count = 0;
-	vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
+	vkEnumeratePhysicalDevices(instance.get(), &device_count, nullptr);
 
 	if (device_count == 0)
 	{
@@ -319,11 +330,11 @@ void VContext::pickPhysicalDevice()
 	}
 
 	std::vector<VkPhysicalDevice> devices(device_count);
-	vkEnumeratePhysicalDevices(instance, &device_count, devices.data());
+	vkEnumeratePhysicalDevices(instance.get(), &device_count, devices.data());
 
 	for (const auto& device : devices)
 	{
-		if (isDeviceSuitable(device, window_surface))
+		if (isDeviceSuitable(device, window_surface.get()))
 		{
 			physial_device = device;
 			break;
@@ -342,11 +353,14 @@ void VContext::pickPhysicalDevice()
 	}
 
 	this->physical_device = physial_device;
+
+
+	this->physical_device_properties = static_cast<vk::PhysicalDevice>(physical_device).getProperties();
 }
 
 void VContext::findQueueFamilyIndices()
 {
-	queue_family_indices = QueueFamilyIndices::findQueueFamilies(physical_device, window_surface);
+	queue_family_indices = QueueFamilyIndices::findQueueFamilies(physical_device, window_surface.get());
 
 	if (!queue_family_indices.isComplete())
 	{
@@ -357,17 +371,26 @@ void VContext::findQueueFamilyIndices()
 // Needs to be called right after instance creation because it may influence device selection
 void VContext::createWindowSurface()
 {
-	auto result = glfwCreateWindowSurface(instance, window, nullptr, &window_surface);
+	VkSurfaceKHR temp_surface;
+	auto result = glfwCreateWindowSurface(instance.get(), window, nullptr, &temp_surface);
 
 	if (result != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to create window surface!");
 	}
+
+	window_surface = VRaii<vk::SurfaceKHR>{
+		temp_surface,
+		[instance = this->instance.get()](auto& surface)
+		{
+			instance.destroySurfaceKHR(surface);
+		}
+	};
 }
 
 void VContext::createLogicalDevice()
 {
-	QueueFamilyIndices indices = QueueFamilyIndices::findQueueFamilies(physical_device, static_cast<VkSurfaceKHR>(window_surface));
+	QueueFamilyIndices indices = QueueFamilyIndices::findQueueFamilies(physical_device, static_cast<VkSurfaceKHR>(window_surface.get()));
 
 	std::vector <VkDeviceQueueCreateInfo> queue_create_infos;
 	std::set<int> queue_families = { indices.graphics_family, indices.present_family, indices.compute_family };
@@ -384,7 +407,7 @@ void VContext::createLogicalDevice()
 		queue_create_info.pQueuePriorities = &queue_priority;
 		queue_create_infos.push_back(queue_create_info);
 	}
-
+	
 	// Specify used device features
 	VkPhysicalDeviceFeatures device_features = {}; // Everything is by default VK_FALSE
 
@@ -409,17 +432,68 @@ void VContext::createLogicalDevice()
 	device_create_info.enabledExtensionCount = static_cast<uint32_t>(DEVICE_EXTENSIONS.size());
 	device_create_info.ppEnabledExtensionNames = DEVICE_EXTENSIONS.data();
 
-	auto result = vkCreateDevice(physical_device, &device_create_info, nullptr, &graphics_device);
+	VkDevice temp_device;
+	auto result = vkCreateDevice(physical_device, &device_create_info, nullptr, &temp_device);
 
 	if (result != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to create logical device!");
 	}
-	device = graphics_device;
+	graphics_device = VRaii<vk::Device>{
+		temp_device,
+		[](vk::Device& device)
+		{
+			device.destroy();
+		}
+	};
+	auto device = graphics_device.get();
 
 	graphics_queue = device.getQueue(indices.graphics_family, 0);
-	vkGetDeviceQueue(graphics_device, indices.present_family, 0, &present_queue);
+	present_queue = device.getQueue(indices.present_family, 0);
 	compute_queue = device.getQueue(indices.compute_family, 0);
+}
+
+void VContext::createCommandPools()
+{
+	auto device = graphics_device.get();
+	auto raii_commandpool_deleter = [device = device](auto& obj)
+	{
+		device.destroyCommandPool(obj);
+	};
+
+	auto& indices = queue_family_indices;
+
+	// graphics_queue_command_pool
+	{
+		VkCommandPoolCreateInfo pool_info = {};
+		pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+		pool_info.queueFamilyIndex = indices.graphics_family;
+		pool_info.flags = 0; // Optional
+								// hint the command pool will rerecord buffers by VK_COMMAND_POOL_CREATE_TRANSIENT_BIT
+								// allow buffers to be rerecorded individually by VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
+
+
+
+		graphics_queue_command_pool = VRaii<vk::CommandPool>(
+			device.createCommandPool(pool_info, nullptr),
+			raii_commandpool_deleter
+		);
+	}
+	
+	// compute_queue_command_pool
+	{
+		VkCommandPoolCreateInfo cmd_pool_info = {};
+		cmd_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+		cmd_pool_info.queueFamilyIndex = indices.compute_family;
+		cmd_pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+
+
+		compute_queue_command_pool = VRaii<vk::CommandPool>(
+			device.createCommandPool(cmd_pool_info, nullptr),
+			raii_commandpool_deleter
+		);
+	}
+
 }
 
 SwapChainSupportDetails SwapChainSupportDetails::querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface)

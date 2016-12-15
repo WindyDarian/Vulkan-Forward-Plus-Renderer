@@ -54,15 +54,14 @@ namespace util
 
 	//const std::string MODEL_PATH = util::getContentPath("chalet.obj");
 	//const std::string TEXTURE_PATH = util::getContentPath("chalet.jpg");
-	const std::string MODEL_PATH = util::getContentPath("sponza/sponza.obj");
-	const std::string TEXTURE_PATH = util::getContentPath("sponza/color.jpg");
-	const std::string NORMALMAP_PATH = util::getContentPath("sponza/normal.png");
+	const std::string MODEL_PATH = util::getContentPath("sponza_full/sponza.obj");
+	const std::string TEXTURE_PATH = util::getContentPath("sponza_full/textures/spnza_bricks_a_diff.tga");
+	const std::string NORMALMAP_PATH = util::getContentPath("sponza_full/textures/spnza_bricks_a_ddn.tga");
+	//const std::string TEXTURE_PATH = util::getContentPath("sponza/color.jpg");
+	//const std::string NORMALMAP_PATH = util::getContentPath("sponza/normal.png");
 
 
 	std::vector<char> readFile(const std::string& filename);
-
-	// returns tuple(vertex vector, index vector)
-	std::tuple<std::vector<Vertex>, std::vector<Vertex::index_t>> loadModel();
 
 	constexpr glm::vec3 vec_up = glm::vec3(0.0f, 1.0f, 0.0f);
 	constexpr glm::vec3 vec_right = glm::vec3(1.0f, 0.0f, 0.0f);
@@ -74,5 +73,11 @@ namespace util
 	{
 		return glm::abs(a - b) <= SMALL_NUMBER;
 	}
+
+	inline std::string findFolderName(const std::string& str)
+	{
+		return str.substr(0, str.find_last_of("/\\"));
+	}
+
 }
 
