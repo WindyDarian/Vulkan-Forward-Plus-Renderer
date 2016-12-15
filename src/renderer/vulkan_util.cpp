@@ -230,11 +230,11 @@ std::tuple<VRaii<VkBuffer>, VRaii<VkDeviceMemory>> VUtility::createBuffer(VkDevi
 		, VRaii<VkDeviceMemory>(buffer_memory, raii_memory_deleter));
 }
 
-void VUtility::copyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size)
+void VUtility::copyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size, VkDeviceSize src_offset, VkDeviceSize dst_offset)
 {
 	VkCommandBuffer copy_command_buffer = beginSingleTimeCommands();
 
-	recordCopyBuffer(copy_command_buffer, src_buffer, dst_buffer, size);
+	recordCopyBuffer(copy_command_buffer, src_buffer, dst_buffer, size, src_offset, dst_offset);
 
 	endSingleTimeCommands(copy_command_buffer);
 }
@@ -459,11 +459,11 @@ void VUtility::endSingleTimeCommands(VkCommandBuffer command_buffer)
 	vkFreeCommandBuffers(graphics_device, graphics_queue_command_pool, 1, &command_buffer);
 }
 
-void VUtility::recordCopyBuffer(VkCommandBuffer command_buffer, VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size)
+void VUtility::recordCopyBuffer(VkCommandBuffer command_buffer, VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size, VkDeviceSize src_offset, VkDeviceSize dst_offset)
 {
 	VkBufferCopy copy_region = {};
-	copy_region.srcOffset = 0; // Optional
-	copy_region.dstOffset = 0; // Optional
+	copy_region.srcOffset = src_offset; // Optional
+	copy_region.dstOffset = dst_offset; // Optional
 	copy_region.size = size;
 
 	vkCmdCopyBuffer(command_buffer, src_buffer, dst_buffer, 1, &copy_region);

@@ -63,9 +63,6 @@ namespace util
 
 	std::vector<char> readFile(const std::string& filename);
 
-	// returns tuple(vertex vector, index vector)
-	std::tuple<std::vector<Vertex>, std::vector<Vertex::index_t>> loadModel();
-
 	constexpr glm::vec3 vec_up = glm::vec3(0.0f, 1.0f, 0.0f);
 	constexpr glm::vec3 vec_right = glm::vec3(1.0f, 0.0f, 0.0f);
 	constexpr glm::vec3 vec_forward = glm::vec3(0.0f, 0.0f, -1.0f);

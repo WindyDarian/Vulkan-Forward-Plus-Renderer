@@ -7,6 +7,7 @@
 
 #include "VulkanRenderer.h"
 
+#include "model.h"
 #include "raii.h"
 #include "../util.h"
 #include "vulkan_util.h"
@@ -118,7 +119,7 @@ private:
 	vk::Queue graphics_queue;
 	vk::Queue present_queue;
 	vk::Queue compute_queue;
-	vk::CommandPool command_pool;
+	vk::CommandPool graphics_command_pool;
 	vk::CommandPool compute_command_pool;
 	
 	VRaii<vk::SwapchainKHR> swap_chain;
@@ -190,10 +191,11 @@ private:
 	vk::DescriptorSet intermediate_descriptor_set;
 
 	// vertex buffer
-	VRaii<VkBuffer> vertex_buffer;
-	VRaii<VkDeviceMemory> vertex_buffer_memory;
-	VRaii<VkBuffer> index_buffer;
-	VRaii<VkDeviceMemory> index_buffer_memory;
+	VModel model;
+	//VRaii<VkBuffer> vertex_buffer;
+	//VRaii<VkDeviceMemory> vertex_buffer_memory;
+	//VRaii<VkBuffer> index_buffer;
+	//VRaii<VkDeviceMemory> index_buffer_memory;
 
 	VRaii<VkBuffer> pointlight_buffer;
 	VRaii<VkDeviceMemory> pointlight_buffer_memory;
@@ -236,10 +238,11 @@ private:
 		createFrameBuffers();
 		createTextureAndNormal();
 		createTextureSampler();
-		std::tie(vertices, vertex_indices) = util::loadModel();
+		model = VModel::loadModelFromFile(vulkan_context, util::MODEL_PATH);
+		//std::tie(vertices, vertex_indices) = util::loadModel();
 		// TODO: better to use a single memory allocation for multiple buffers
-		createVertexBuffer();
-		createIndexBuffer();
+		//createVertexBuffer();
+		//createIndexBuffer();
 		createUniformBuffers();
 		createLights();
 		createDescriptorPool();
@@ -281,8 +284,6 @@ private:
 	void createFrameBuffers();
 	void createTextureAndNormal();
 	void createTextureSampler();
-	void createVertexBuffer();
-	void createIndexBuffer();
 	void createUniformBuffers();
 	void createLights();
 	void createDescriptorPool();
@@ -322,7 +323,7 @@ _VulkanRenderer_Impl::_VulkanRenderer_Impl(GLFWwindow* window)
 	graphics_queue = vulkan_context.getGraphicsQueue();
 	present_queue = vulkan_context.getPresentQueue();
 	compute_queue = vulkan_context.getComputeQueue();
-	command_pool = vulkan_context.getGraphicsCommandPool();
+	graphics_command_pool = vulkan_context.getGraphicsCommandPool();
 	compute_command_pool = vulkan_context.getComputeCommandPool();
 
 	std::tie(window_framebuffer_width, window_framebuffer_height) = vulkan_context.getWindowFrameBufferSize();
@@ -1065,60 +1066,6 @@ void _VulkanRenderer_Impl::createTextureSampler()
 	);
 }
 
-
-
-void _VulkanRenderer_Impl::createVertexBuffer()
-{
-	VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
-
-	// create staging buffer
-	VRaii<VkBuffer> staging_buffer;
-	VRaii<VkDeviceMemory> staging_buffer_memory;
-	std::tie(staging_buffer, staging_buffer_memory) = utility.createBuffer(buffer_size
-		, VK_BUFFER_USAGE_TRANSFER_SRC_BIT // to be transfered from
-		, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-		);
-
-	// copy data to staging buffer
-	void* data;
-	vkMapMemory(graphics_device, staging_buffer_memory.get(), 0, buffer_size, 0, &data); // access the graphics memory using mapping
-		memcpy(data, vertices.data(), (size_t)buffer_size); // may not be immediate due to memory caching or write operation not visiable without VK_MEMORY_PROPERTY_HOST_COHERENT_BIT or explict flusing
-	vkUnmapMemory(graphics_device, staging_buffer_memory.get());
-
-	// create vertex buffer at optimized local memory which may not be directly accessable by memory mapping
-	// as copy destination of staging buffer
-	std::tie(vertex_buffer, vertex_buffer_memory) = utility.createBuffer(buffer_size
-		, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
-		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-	// copy content of staging buffer to vertex buffer
-	utility.copyBuffer(staging_buffer.get(), vertex_buffer.get(), buffer_size);
-}
-
-void _VulkanRenderer_Impl::createIndexBuffer()
-{
-	VkDeviceSize buffer_size = sizeof(vertex_indices[0]) * vertex_indices.size();
-
-	// create staging buffer
-	VRaii<VkBuffer> staging_buffer;
-	VRaii<VkDeviceMemory> staging_buffer_memory;
-	std::tie(staging_buffer, staging_buffer_memory) = utility.createBuffer(buffer_size
-		, VK_BUFFER_USAGE_TRANSFER_SRC_BIT // to be transfered from
-		, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-	void* data;
-	vkMapMemory(graphics_device, staging_buffer_memory.get(), 0, buffer_size, 0, &data); // access the graphics memory using mapping
-	memcpy(data, vertex_indices.data(), (size_t)buffer_size); // may not be immediate due to memory caching or write operation not visiable without VK_MEMORY_PROPERTY_HOST_COHERENT_BIT or explict flusing
-	vkUnmapMemory(graphics_device, staging_buffer_memory.get());
-
-	std::tie(index_buffer, index_buffer_memory) = utility.createBuffer(buffer_size
-		, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT
-		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-	// copy content of staging buffer to index buffer
-	utility.copyBuffer(staging_buffer.get(), index_buffer.get(), buffer_size);
-}
-
 void _VulkanRenderer_Impl::createUniformBuffers()
 {
 	// create buffers for scene object
@@ -1381,14 +1328,14 @@ void _VulkanRenderer_Impl::createDepthPrePassCommandBuffer()
 {
 	if (depth_prepass_command_buffer)
 	{
-		device.freeCommandBuffers(command_pool, 1, &depth_prepass_command_buffer);
+		device.freeCommandBuffers(graphics_command_pool, 1, &depth_prepass_command_buffer);
 		depth_prepass_command_buffer = VK_NULL_HANDLE;
 	}
 
 	// Create depth pre-pass command buffer
 	{
 		vk::CommandBufferAllocateInfo alloc_info = {
-			command_pool, // command pool
+			graphics_command_pool, // command pool
 			vk::CommandBufferLevel::ePrimary, // level
 			1 // commandBufferCount
 		};
@@ -1418,19 +1365,22 @@ void _VulkanRenderer_Impl::createDepthPrePassCommandBuffer()
 			clear_values.data()
 		};
 		command.beginRenderPass(&depth_pass_info, vk::SubpassContents::eInline);
-		command.bindPipeline(vk::PipelineBindPoint::eGraphics, depth_pipeline.get());
 
-		std::array<vk::DescriptorSet, 2> depth_descriptor_sets = { object_descriptor_set, camera_descriptor_set };
-		std::array<uint32_t, 0> depth_dynamic_offsets;
-		command.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, depth_pipeline_layout.get(), 0, depth_descriptor_sets, depth_dynamic_offsets);
+		for (const auto& part: model.getMeshParts() )
+		{
+			command.bindPipeline(vk::PipelineBindPoint::eGraphics, depth_pipeline.get());
 
-		std::array<vk::Buffer, 1> depth_vertex_buffers = { vertex_buffer.get() };
-		std::array<vk::DeviceSize, 1> depth_offsets = { 0 };
-		command.bindVertexBuffers(0, depth_vertex_buffers, depth_offsets);
-		command.bindIndexBuffer(index_buffer.get(), 0, vk::IndexType::eUint32);
+			std::array<vk::DescriptorSet, 2> depth_descriptor_sets = { object_descriptor_set, camera_descriptor_set };
+			std::array<uint32_t, 0> depth_dynamic_offsets;
+			command.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, depth_pipeline_layout.get(), 0, depth_descriptor_sets, depth_dynamic_offsets);
 
-		command.drawIndexed(static_cast<uint32_t>(vertex_indices.size()), 1, 0, 0, 0);
+			std::array<vk::Buffer, 1> depth_vertex_buffers = { part.vertex_buffer_section.buffer };
+			std::array<vk::DeviceSize, 1> depth_offsets = { part.vertex_buffer_section.offset };
+			command.bindVertexBuffers(0, depth_vertex_buffers, depth_offsets);
+			command.bindIndexBuffer(part.index_buffer_section.buffer, part.index_buffer_section.offset, vk::IndexType::eUint32);
 
+			command.drawIndexed(static_cast<uint32_t>(part.index_count), 1, 0, 0, 0);
+		}
 		command.endRenderPass();
 
 		command.end();
@@ -1444,7 +1394,7 @@ void _VulkanRenderer_Impl::createGraphicsCommandBuffers()
 	// Free old command buffers, if any
 	if (command_buffers.size() > 0)
 	{
-		vkFreeCommandBuffers(graphics_device, command_pool, (uint32_t)command_buffers.size(), command_buffers.data());
+		vkFreeCommandBuffers(graphics_device, graphics_command_pool, (uint32_t)command_buffers.size(), command_buffers.data());
 	}
 	command_buffers.clear();
 
@@ -1452,7 +1402,7 @@ void _VulkanRenderer_Impl::createGraphicsCommandBuffers()
 
 	VkCommandBufferAllocateInfo alloc_info = {};
 	alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	alloc_info.commandPool = command_pool;
+	alloc_info.commandPool = graphics_command_pool;
 	alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	// primary: can be submitted to a queue but cannot be called from other command buffers
 	// secondary: can be called by others but cannot be submitted to a queue
@@ -1499,24 +1449,26 @@ void _VulkanRenderer_Impl::createGraphicsCommandBuffers()
 			};
 			vkCmdPushConstants(command_buffers[i], pipeline_layout.get(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pco), &pco);
 
-			vkCmdBindPipeline(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline.get());
+			for (const auto& part : model.getMeshParts())
+			{
+				vkCmdBindPipeline(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline.get());
 
-			// bind vertex buffer
-			VkBuffer vertex_buffers[] = { vertex_buffer.get()};
-			VkDeviceSize offsets[] = { 0 };
-			vkCmdBindVertexBuffers(command_buffers[i], 0, 1, vertex_buffers, offsets);
-			//vkCmdBindIndexBuffer(command_buffers[i], index_buffer, 0, VK_INDEX_TYPE_UINT16);
-			vkCmdBindIndexBuffer(command_buffers[i], index_buffer.get(), 0, VK_INDEX_TYPE_UINT32);
+				// bind vertex buffer
+				VkBuffer vertex_buffers[] = { part.vertex_buffer_section.buffer };
+				VkDeviceSize offsets[] = { part.vertex_buffer_section.offset };
+				vkCmdBindVertexBuffers(command_buffers[i], 0, 1, vertex_buffers, offsets);
+				//vkCmdBindIndexBuffer(command_buffers[i], index_buffer, 0, VK_INDEX_TYPE_UINT16);
+				vkCmdBindIndexBuffer(command_buffers[i], part.index_buffer_section.buffer, part.index_buffer_section.offset, VK_INDEX_TYPE_UINT32);
 
-			std::array<VkDescriptorSet, 4> descriptor_sets = { object_descriptor_set, camera_descriptor_set, light_culling_descriptor_set, intermediate_descriptor_set };
-			vkCmdBindDescriptorSets(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS
-				, pipeline_layout.get(), 0, static_cast<uint32_t>(descriptor_sets.size()), descriptor_sets.data(), 0, nullptr);
-			// TODO: better to store vertex buffer and index buffer in a single VkBuffer
+				std::array<VkDescriptorSet, 4> descriptor_sets = { object_descriptor_set, camera_descriptor_set, light_culling_descriptor_set, intermediate_descriptor_set };
+				vkCmdBindDescriptorSets(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS
+					, pipeline_layout.get(), 0, static_cast<uint32_t>(descriptor_sets.size()), descriptor_sets.data(), 0, nullptr);
+				// TODO: better to store vertex buffer and index buffer in a single VkBuffer
 
 
-			//vkCmdDraw(command_buffers[i], VERTICES.size(), 1, 0, 0);
-			vkCmdDrawIndexed(command_buffers[i], (uint32_t)vertex_indices.size(), 1, 0, 0, 0);
-
+				//vkCmdDraw(command_buffers[i], VERTICES.size(), 1, 0, 0);
+				vkCmdDrawIndexed(command_buffers[i], part.index_count, 1, 0, 0, 0);
+			}
 			vkCmdEndRenderPass(command_buffers[i]);
 			utility.recordTransitImageLayout(command_buffers[i], pre_pass_depth_image.get(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 

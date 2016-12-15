@@ -9,6 +9,8 @@
 
 #include <vector>
 
+class VContext;
+
 /**
 * A structure that points to a part of a buffer
 */
@@ -29,10 +31,17 @@ struct VMeshPart
 {
 	VBufferSection vertex_buffer_section;
 	VBufferSection index_buffer_section;
+	size_t index_count;
 
 	// handles for images (no ownership or so)
-	vk::Image albedo_map;
-	vk::Image normal_map;
+	vk::Image albedo_map = {};
+	vk::Image normal_map = {};
+
+	VMeshPart(const VBufferSection& vertex_buffer_section, const VBufferSection& index_buffer_section, size_t index_count)
+		: vertex_buffer_section(vertex_buffer_section)
+		, index_buffer_section(index_buffer_section)
+		, index_count(index_count)
+	{}
 };
 
 /**
@@ -42,26 +51,26 @@ struct VMeshPart
 class VModel
 {
 public:
+	VModel() = default;
 	~VModel() = default;
-
 	VModel(VModel&&) = default;
 	VModel& operator= (VModel&&) = default;
-
-	VModel(const VModel&) = delete;
-	VModel& operator= (const VModel&) = delete;
-
-private:
-	VModel() = default;
-
-	VRaii<vk::Buffer> buffer;
-	//std::vector<VRaii<vk::Image>> images;
-	std::vector<VMeshPart> mesh_parts;
 
 	const std::vector<VMeshPart>& getMeshParts() const
 	{
 		return mesh_parts;
 	}
 
-	static VModel loadModelFromFile(vk::Device device_handle, const std::string& path);
+	static VModel loadModelFromFile(const VContext& vulkan_context, const std::string& path);
+
+	VModel(const VModel&) = delete;
+	VModel& operator= (const VModel&) = delete;
+
+private:
+	VRaii<VkBuffer> buffer;
+	VRaii<VkDeviceMemory> buffer_memory;
+	//std::vector<VRaii<vk::Image>> images;
+	std::vector<VMeshPart> mesh_parts;
+
 };
 

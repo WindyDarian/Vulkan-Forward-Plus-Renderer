@@ -23,7 +23,7 @@ namespace vulkan_util
 class VContext;
 
 /**
-* a utility module for vulkan, it can serve as a helper member for a class using a vulkan context
+* a utility module for vulkan context
 */
 class VUtility
 {
@@ -51,7 +51,7 @@ public:
 	}
 
 	std::tuple<VRaii<VkBuffer>, VRaii<VkDeviceMemory>> createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags property_bits, int sharing_queue_family_index_a = -1, int sharing_queue_family_index_b = -1);
-	void copyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
+	void copyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size, VkDeviceSize src_offset = 0, VkDeviceSize dst_offset = 0);
 
 	std::tuple<VRaii<VkImage>, VRaii<VkDeviceMemory>> createImage(uint32_t image_width, uint32_t image_height
 		, VkFormat format, VkImageTiling tiling
@@ -69,11 +69,14 @@ public:
 	void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 
 	// Called on vulcan command buffer recording
-	void recordCopyBuffer(VkCommandBuffer command_buffer, VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
+	void recordCopyBuffer(VkCommandBuffer command_buffer, VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size, VkDeviceSize src_offset = 0, VkDeviceSize dst_offset = 0);
 	void recordCopyImage(VkCommandBuffer command_buffer, VkImage src_image, VkImage dst_image, uint32_t width, uint32_t height);
 	void recordTransitImageLayout(VkCommandBuffer command_buffer, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout);
 
 private:
+
+	std::tuple<VkBuffer, VkDeviceMemory> createBufferImpl(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags property_bits, int sharing_queue_family_index_a = -1, int sharing_queue_family_index_b = -1);
+
 
 	const VContext* context;
 	vk::PhysicalDevice physical_device;

@@ -3,6 +3,8 @@
 
 #include "model.h"
 
+#include "vulkan_util.h"
+#include "context.h"
 #include "../util.h"
 
 #include <tiny_obj_loader.h>
@@ -106,15 +108,128 @@ MeshMaterialGroup loadModel(const std::string& path)
 	return temp_group;
 }
 
-VModel VModel::loadModelFromFile(vk::Device device_handle, const std::string & path)
+VModel VModel::loadModelFromFile(const VContext& vulkan_context, const std::string & path)
 {
 	VModel model;
-	
+
+	auto device = vulkan_context.getDevice();
+	VUtility vulkan_utility{ vulkan_context };
+
 	//std::vector<util::Vertex> vertices, std::vector<util::Vertex::index_t> vertex_indices;
 	auto group = loadModel(path);
+	vk::DeviceSize vertex_section_size = sizeof(group.vertices[0]) * group.vertices.size();
+	vk::DeviceSize index_section_size = sizeof(group.vertex_indices[0]) * group.vertex_indices.size();
+
+	auto buffer_size = vertex_section_size + index_section_size;
+
+	std::tie(model.buffer, model.buffer_memory) = vulkan_utility.createBuffer(buffer_size
+		, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+	vk::DeviceSize current_offset = 0;
+	
+	VBufferSection vertex_buffer_section = { model.buffer.get(), current_offset, vertex_section_size };
+	// copy vertex data
+	{
+		auto staging_buffer_size = vertex_section_size;
+		auto host_data = group.vertices.data();
+
+		VRaii<VkBuffer> staging_buffer;
+		VRaii<VkDeviceMemory> staging_buffer_memory;
+		std::tie(staging_buffer, staging_buffer_memory) = vulkan_utility.createBuffer(staging_buffer_size
+			, VK_BUFFER_USAGE_TRANSFER_SRC_BIT // to be transfered from
+			, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+		);
+
+		void* data = device.mapMemory(staging_buffer_memory.get(), 0, staging_buffer_size, vk::MemoryMapFlags());
+		memcpy(data, host_data, static_cast<size_t>(staging_buffer_size)); // may not be immediate due to memory caching or write operation not visiable without VK_MEMORY_PROPERTY_HOST_COHERENT_BIT or explict flusing
+		device.unmapMemory(staging_buffer_memory.get());
+
+		vulkan_utility.copyBuffer(staging_buffer.get(), model.buffer.get(), staging_buffer_size, 0, current_offset);
 
 
-	return VModel();
+
+		current_offset += staging_buffer_size;
+	}
+	
+	VBufferSection index_buffer_section = { model.buffer.get(), current_offset, index_section_size };
+	// copy index data
+	{
+		auto staging_buffer_size = index_section_size;
+		auto host_data = group.vertex_indices.data();
+
+		VRaii<VkBuffer> staging_buffer;
+		VRaii<VkDeviceMemory> staging_buffer_memory;
+		std::tie(staging_buffer, staging_buffer_memory) = vulkan_utility.createBuffer(staging_buffer_size
+			, VK_BUFFER_USAGE_TRANSFER_SRC_BIT // to be transfered from
+			, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+		);
+
+		void* data = device.mapMemory(staging_buffer_memory.get(), 0, staging_buffer_size, vk::MemoryMapFlags());
+		memcpy(data, host_data, static_cast<size_t>(staging_buffer_size)); // may not be immediate due to memory caching or write operation not visiable without VK_MEMORY_PROPERTY_HOST_COHERENT_BIT or explict flusing
+		device.unmapMemory(staging_buffer_memory.get());
+
+		vulkan_utility.copyBuffer(staging_buffer.get(), model.buffer.get(), staging_buffer_size, 0, current_offset);
+
+		current_offset += staging_buffer_size;
+	}
+
+	VMeshPart part = { vertex_buffer_section, index_buffer_section, group.vertex_indices.size() };
+	model.mesh_parts.push_back(part);
+	return model;
 }
+
+
+//void _VulkanRenderer_Impl::createVertexBuffer()
+//{
+//	VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
+//
+//	// create staging buffer
+//	VRaii<VkBuffer> staging_buffer;
+//	VRaii<VkDeviceMemory> staging_buffer_memory;
+//	std::tie(staging_buffer, staging_buffer_memory) = utility.createBuffer(buffer_size
+//		, VK_BUFFER_USAGE_TRANSFER_SRC_BIT // to be transfered from
+//		, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+//	);
+//
+//	// copy data to staging buffer
+//	void* data;
+//	vkMapMemory(graphics_device, staging_buffer_memory.get(), 0, buffer_size, 0, &data); // access the graphics memory using mapping
+//	memcpy(data, vertices.data(), (size_t)buffer_size); // may not be immediate due to memory caching or write operation not visiable without VK_MEMORY_PROPERTY_HOST_COHERENT_BIT or explict flusing
+//	vkUnmapMemory(graphics_device, staging_buffer_memory.get());
+//
+//	// create vertex buffer at optimized local memory which may not be directly accessable by memory mapping
+//	// as copy destination of staging buffer
+//	std::tie(vertex_buffer, vertex_buffer_memory) = utility.createBuffer(buffer_size
+//		, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+//		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+//
+//	// copy content of staging buffer to vertex buffer
+//	utility.copyBuffer(staging_buffer.get(), vertex_buffer.get(), buffer_size);
+//}
+//
+//void _VulkanRenderer_Impl::createIndexBuffer()
+//{
+//	VkDeviceSize buffer_size = sizeof(vertex_indices[0]) * vertex_indices.size();
+//
+//	// create staging buffer
+//	VRaii<VkBuffer> staging_buffer;
+//	VRaii<VkDeviceMemory> staging_buffer_memory;
+//	std::tie(staging_buffer, staging_buffer_memory) = utility.createBuffer(buffer_size
+//		, VK_BUFFER_USAGE_TRANSFER_SRC_BIT // to be transfered from
+//		, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+//
+//	void* data;
+//	vkMapMemory(graphics_device, staging_buffer_memory.get(), 0, buffer_size, 0, &data); // access the graphics memory using mapping
+//	memcpy(data, vertex_indices.data(), (size_t)buffer_size); // may not be immediate due to memory caching or write operation not visiable without VK_MEMORY_PROPERTY_HOST_COHERENT_BIT or explict flusing
+//	vkUnmapMemory(graphics_device, staging_buffer_memory.get());
+//
+//	std::tie(index_buffer, index_buffer_memory) = utility.createBuffer(buffer_size
+//		, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+//		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+//
+//	// copy content of staging buffer to index buffer
+//	utility.copyBuffer(staging_buffer.get(), index_buffer.get(), buffer_size);
+//}
 
 
