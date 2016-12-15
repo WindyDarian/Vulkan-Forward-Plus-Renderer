@@ -54,9 +54,8 @@ namespace util
 
 	//const std::string MODEL_PATH = util::getContentPath("chalet.obj");
 	//const std::string TEXTURE_PATH = util::getContentPath("chalet.jpg");
-	const std::string MODEL_PATH = util::getContentPath("sponza_full/sponza.obj");
-	const std::string TEXTURE_PATH = util::getContentPath("sponza_full/textures/spnza_bricks_a_diff.tga");
-	const std::string NORMALMAP_PATH = util::getContentPath("sponza_full/textures/spnza_bricks_a_ddn.tga");
+	//const std::string MODEL_PATH = util::getContentPath("sponza_full/sponza.obj");
+	const std::string MODEL_PATH = util::getContentPath("rungholt/rungholt.obj");
 	//const std::string TEXTURE_PATH = util::getContentPath("sponza/color.jpg");
 	//const std::string NORMALMAP_PATH = util::getContentPath("sponza/normal.png");
 

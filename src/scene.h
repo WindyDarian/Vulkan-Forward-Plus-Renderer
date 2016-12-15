@@ -9,6 +9,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <vector>
+#include <string>
 
 struct Camera
 {
@@ -28,3 +29,16 @@ public:
 		return glm::transpose(glm::toMat4(rotation)) * glm::translate(glm::mat4(1.0f), -position); // equal to inv(TR) 
 	}
 };
+
+// for test use
+struct TestSceneConfiguration
+{
+	std::string model_file;
+	float scale;
+	glm::vec3 min_light_pos;
+	glm::vec3 max_light_pos;
+	float light_radius;
+	int light_num;
+};
+
+TestSceneConfiguration& getGlobalTestSceneConfiguration();

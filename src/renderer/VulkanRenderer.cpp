@@ -7,6 +7,7 @@
 
 #include "VulkanRenderer.h"
 
+#include "../scene.h"
 #include "model.h"
 #include "raii.h"
 #include "../util.h"
@@ -29,7 +30,7 @@
 
 using util::Vertex;
 
-const int MAX_POINT_LIGHT_COUNT = 1000;
+const int MAX_POINT_LIGHT_COUNT = 20000; //TODO: change it back smaller
 const int MAX_POINT_LIGHT_PER_TILE = 63;
 const int TILE_SIZE = 16;
 
@@ -208,8 +209,6 @@ private:
 	std::vector<uint32_t> vertex_indices;
 
 	std::vector<PointLight> pointlights;
-	const glm::vec3 LIGHTPOS_MIN = { -15, -5, -5 };
-	const glm::vec3 LIGHTPOS_MAX = { 15, 20, 5 };
 
 	// This storage buffer stores visible lights for each tile
 	// which is output from the light culling compute shader
@@ -237,12 +236,11 @@ private:
 		createComputePipeline();
 		createDepthResources();
 		createFrameBuffers();
-		createTextureAndNormal();
 		createTextureSampler();
 		createUniformBuffers();
 		createLights();
 		createDescriptorPool();
-		model = VModel::loadModelFromFile(vulkan_context, util::MODEL_PATH, texture_sampler.get(), descriptor_pool.get(), material_descriptor_set_layout.get());
+		model = VModel::loadModelFromFile(vulkan_context, getGlobalTestSceneConfiguration().model_file, texture_sampler.get(), descriptor_pool.get(), material_descriptor_set_layout.get());
 		createSceneObjectDescriptorSet();
 		createCameraDescriptorSet();
 		createIntermediateDescriptorSet();
@@ -279,7 +277,6 @@ private:
 	void createGraphicsPipelines();
 	void createDepthResources();
 	void createFrameBuffers();
-	void createTextureAndNormal();
 	void createTextureSampler();
 	void createUniformBuffers();
 	void createLights();
@@ -578,23 +575,8 @@ void _VulkanRenderer_Impl::createDescriptorSetLayouts()
 		// VK_SHADER_STAGE_ALL_GRAPHICS
 		ubo_layout_binding.pImmutableSamplers = nullptr; // Optional
 
-		// descriptor for texture sampler
-		VkDescriptorSetLayoutBinding sampler_layout_binding = {};
-		sampler_layout_binding.binding = 1;
-		sampler_layout_binding.descriptorCount = 1;
-		sampler_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		sampler_layout_binding.pImmutableSamplers = nullptr;
-		sampler_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-		// descriptor for normal map sampler
-		VkDescriptorSetLayoutBinding normalmap_layout_binding = {};
-		normalmap_layout_binding.binding = 2;
-		normalmap_layout_binding.descriptorCount = 1;
-		normalmap_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		normalmap_layout_binding.pImmutableSamplers = nullptr;
-		normalmap_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-		std::array<VkDescriptorSetLayoutBinding, 3> bindings = { ubo_layout_binding, sampler_layout_binding, normalmap_layout_binding };
+		std::array<VkDescriptorSetLayoutBinding, 1> bindings = { ubo_layout_binding};
 		// std::array<VkDescriptorSetLayoutBinding, 2> bindings = { ubo_layout_binding, sampler_layout_binding};
 		VkDescriptorSetLayoutCreateInfo layout_info = {};
 		layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -1057,12 +1039,6 @@ void _VulkanRenderer_Impl::createDepthResources()
 	utility.transitImageLayout(pre_pass_depth_image.get(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 }
 
-void _VulkanRenderer_Impl::createTextureAndNormal()
-{
-	std::tie(texture_image, texture_image_memory, texture_image_view) = utility.loadImageFromFile(util::TEXTURE_PATH);
-	std::tie(normalmap_image, normalmap_image_memory, normalmap_image_view) = utility.loadImageFromFile(util::NORMALMAP_PATH);
-}
-
 void _VulkanRenderer_Impl::createTextureSampler()
 {
 	VkSamplerCreateInfo sampler_info = {};
@@ -1120,7 +1096,7 @@ void _VulkanRenderer_Impl::createUniformBuffers()
 	// Adding data to scene object buffer
 	{
 		SceneObjectUbo ubo = {};
-		ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(0.01f));;
+		ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(getGlobalTestSceneConfiguration().scale));;
 
 		void* data;
 		vkMapMemory(graphics_device, object_staging_buffer_memory.get(), 0, sizeof(ubo), 0, &data);
@@ -1146,11 +1122,11 @@ void _VulkanRenderer_Impl::createUniformBuffers()
 
 void _VulkanRenderer_Impl::createLights()
 {
-	for (int i = 0; i < 200; i++) {
+	for (int i = 0; i < getGlobalTestSceneConfiguration().light_num; i++) {
 		glm::vec3 color;
 		do { color = { glm::linearRand(glm::vec3(0, 0, 0), glm::vec3(1, 1, 1)) }; } 
 		while (color.length() < 0.8f);
-		pointlights.emplace_back(glm::linearRand(LIGHTPOS_MIN, LIGHTPOS_MAX), 5, color);
+		pointlights.emplace_back(glm::linearRand(getGlobalTestSceneConfiguration().min_light_pos, getGlobalTestSceneConfiguration().max_light_pos), getGlobalTestSceneConfiguration().light_radius, color);
 	}
 	// TODO: choose between memory mapping and staging buffer
 	//  (given that the lights are moving)
@@ -1225,23 +1201,8 @@ void _VulkanRenderer_Impl::createSceneObjectDescriptorSet()
 	buffer_info.offset = 0;
 	buffer_info.range = sizeof(SceneObjectUbo);
 
-	VkDescriptorImageInfo image_info = {};
-	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	image_info.imageView = texture_image_view.get();
-	image_info.sampler = texture_sampler.get();
-
-	VkDescriptorImageInfo normalmap_info = {};
-	normalmap_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	normalmap_info.imageView = normalmap_image_view.get();
-	normalmap_info.sampler = texture_sampler.get();
-
-	/*VkDescriptorBufferInfo lights_buffer_info = {};
-	lights_buffer_info.buffer = pointlight_buffer.get();
-	lights_buffer_info.offset = 0;
-	lights_buffer_info.range = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(int);*/
-
 	//std::array<VkWriteDescriptorSet, 4> descriptor_writes = {};
-	std::array<VkWriteDescriptorSet, 3> descriptor_writes = {};
+	std::array<VkWriteDescriptorSet, 1> descriptor_writes = {};
 
 	// ubo
 	descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1253,24 +1214,6 @@ void _VulkanRenderer_Impl::createSceneObjectDescriptorSet()
 	descriptor_writes[0].pBufferInfo = &buffer_info;
 	descriptor_writes[0].pImageInfo = nullptr; // Optional
 	descriptor_writes[0].pTexelBufferView = nullptr; // Optional
-
-	// texture
-	descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptor_writes[1].dstSet = object_descriptor_set;
-	descriptor_writes[1].dstBinding = 1;
-	descriptor_writes[1].dstArrayElement = 0;
-	descriptor_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	descriptor_writes[1].descriptorCount = 1;
-	descriptor_writes[1].pImageInfo = &image_info;
-
-	// normal map
-	descriptor_writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptor_writes[2].dstSet = object_descriptor_set;
-	descriptor_writes[2].dstBinding = 2;
-	descriptor_writes[2].dstArrayElement = 0;
-	descriptor_writes[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	descriptor_writes[2].descriptorCount = 1;
-	descriptor_writes[2].pImageInfo = &normalmap_info;
 
 	vkUpdateDescriptorSets(graphics_device, (uint32_t)descriptor_writes.size()
 		, descriptor_writes.data(), 0, nullptr);
@@ -1856,8 +1799,8 @@ void _VulkanRenderer_Impl::updateUniformBuffers(float deltatime)
 
 		for (int i = 0; i < light_num; i++) {
 			pointlights[i].pos += glm::vec3(0, 3.0f, 0) * deltatime;
-			if (pointlights[i].pos.y > LIGHTPOS_MAX.y) {
-				pointlights[i].pos.y -= (LIGHTPOS_MAX.y - LIGHTPOS_MIN.y);
+			if (pointlights[i].pos.y > getGlobalTestSceneConfiguration().max_light_pos.y) {
+				pointlights[i].pos.y -= (getGlobalTestSceneConfiguration().max_light_pos.y - getGlobalTestSceneConfiguration().min_light_pos.y);
 			}
 		}
 

@@ -2,3 +2,9 @@
 // MIT License.
 
 #include "scene.h"
+
+TestSceneConfiguration & getGlobalTestSceneConfiguration()
+{
+	static TestSceneConfiguration sp;
+	return sp;
+}

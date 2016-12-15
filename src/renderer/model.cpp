@@ -343,14 +343,14 @@ VModel VModel::loadModelFromFile(const VContext& vulkan_context, const std::stri
 
 	};
 
-	vk::DeviceSize uniform_buffer_size = sizeof(MaterialUbo) * model.mesh_parts.size();
-	std::tie(model.uniform_buffer, model.uniform_buffer_memory) = vulkan_utility.createBuffer(uniform_buffer_size
-		, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
-		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
 
 	auto min_alignment = vulkan_context.getPhysicalDeviceProperties().limits.minUniformBufferOffsetAlignment;
 	vk::DeviceSize alignment_offset = ((sizeof(MaterialUbo) - 1) / min_alignment + 1) * min_alignment;
+
+	vk::DeviceSize uniform_buffer_size = alignment_offset * model.mesh_parts.size();
+	std::tie(model.uniform_buffer, model.uniform_buffer_memory) = vulkan_utility.createBuffer(uniform_buffer_size
+		, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 	vk::DeviceSize uniform_buffer_total_offset = 0;
 	for (auto& part : model.mesh_parts)

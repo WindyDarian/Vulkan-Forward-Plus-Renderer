@@ -45,7 +45,7 @@ layout(std430, set = 2, binding = 0) buffer readonly TileLightVisiblities
 layout(std140, set = 2, binding = 1) buffer readonly PointLights // FIXME: change back to uniform // readonly buffer PointLights
 {
 	int light_num;
-	PointLight pointlights[1000];
+	PointLight pointlights[20000];
 };
 
 layout(set = 3, binding = 0) uniform sampler2D depth_sampler;
@@ -58,8 +58,6 @@ layout(std140, set = 4, binding = 0) uniform MaterialUbo
 
 layout(set = 4, binding = 1) uniform sampler2D albedo_sampler;
 layout(set = 4, binding = 2) uniform sampler2D normal_sampler;
-
-
 
 layout(location = 0) in vec3 frag_color;
 layout(location = 1) in vec2 frag_tex_coord;
@@ -115,18 +113,18 @@ void main()
     {
         if (push_constants.debugview_index == 2)
         {
-					//heat map debug view
-					float intensity = float(light_visiblities[tile_index].count) / MAX_POINT_LIGHT_PER_TILE;
-					out_color = vec4(vec3(intensity, intensity, intensity), 1.0) ; //light culling debug
-					float minumum = 0.0;
-					float maximum = 1.0;
-					float ratio = 2 * (intensity - minimum) / (maximum - minimum);
-					int b = int(max(0, 255*(1 - ratio)));
-					int r = int(max(0, 255*(ratio - 1)));
-					int g = 255 - b - r;
-		      out_color = vec4(vec3(r,g,b), 1.0);
-				}
-				else if (push_constants.debugview_index == 3)
+			//heat map debug view
+			float intensity = float(light_visiblities[tile_index].count) / MAX_POINT_LIGHT_PER_TILE;
+			out_color = vec4(vec3(intensity, intensity, intensity), 1.0) ; //light culling debug
+			float minimum = 0.0;
+			float maximum = 1.0;
+			float ratio = 2 * (intensity - minimum) / (maximum - minimum);
+			float b = max(0, 1 - ratio);
+			float r = max(0, ratio - 1);
+			float g = 1.0 - b - r;
+		    out_color = vec4(vec3(r,g,b), 1.0);
+		}
+		else if (push_constants.debugview_index == 3)
         {
             // depth debug view
             out_color = vec4(vec3( pre_depth ),1.0);
