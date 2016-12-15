@@ -59,6 +59,10 @@ For loading more materials, we run the pipeline for each material group to enabl
 ![](screenshots/render.jpg)
 
 # Live Video
+[Please Click Here!!!](https://www.youtube.com/watch?v=ZLNDfPxhqdE&feature=youtu.be)
+
+# Final Slide
+[Please Click Here!!!](https://docs.google.com/presentation/d/1ZQc1wVHuK4elNLhtdMFzwf1gdOJYCIUj3u9yL1qS2eM/edit#slide=id.g1a4ecd687d_0_20)
 
 # Debug Views
 
