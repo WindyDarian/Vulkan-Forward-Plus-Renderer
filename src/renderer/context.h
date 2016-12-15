@@ -62,6 +62,11 @@ public:
 		return physical_device;
 	}
 
+	const vk::PhysicalDeviceProperties& getPhysicalDeviceProperties() const
+	{
+		return physical_device_properties;
+	}
+
 	vk::Device getDevice() const
 	{
 		return graphics_device.get();
@@ -115,6 +120,7 @@ private:
 
 	VRaii<vk::CommandPool> graphics_queue_command_pool;
 	VRaii<vk::CommandPool> compute_queue_command_pool;
+	vk::PhysicalDeviceProperties physical_device_properties;
 
 	static void DestroyDebugReportCallbackEXT(VkInstance instance
 		, VkDebugReportCallbackEXT callback

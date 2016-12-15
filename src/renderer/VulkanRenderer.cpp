@@ -135,6 +135,7 @@ private:
 
 	VRaii<vk::DescriptorSetLayout> object_descriptor_set_layout;
 	VRaii<vk::DescriptorSetLayout> camera_descriptor_set_layout;
+	VRaii<vk::DescriptorSetLayout> material_descriptor_set_layout;
 	VRaii<VkPipelineLayout> pipeline_layout;
 	VRaii<VkPipeline> graphics_pipeline;
 	VRaii<vk::PipelineLayout> depth_pipeline_layout;
@@ -238,14 +239,10 @@ private:
 		createFrameBuffers();
 		createTextureAndNormal();
 		createTextureSampler();
-		model = VModel::loadModelFromFile(vulkan_context, util::MODEL_PATH);
-		//std::tie(vertices, vertex_indices) = util::loadModel();
-		// TODO: better to use a single memory allocation for multiple buffers
-		//createVertexBuffer();
-		//createIndexBuffer();
 		createUniformBuffers();
 		createLights();
 		createDescriptorPool();
+		model = VModel::loadModelFromFile(vulkan_context, util::MODEL_PATH, texture_sampler.get(), descriptor_pool.get(), material_descriptor_set_layout.get());
 		createSceneObjectDescriptorSet();
 		createCameraDescriptorSet();
 		createIntermediateDescriptorSet();
@@ -305,9 +302,6 @@ private:
 	void drawFrame();
 
 	VRaii<VkShaderModule> createShaderModule(const std::vector<char>& code);
-
-
-
 };
 
 
@@ -696,6 +690,49 @@ void _VulkanRenderer_Impl::createDescriptorSetLayouts()
 			raii_layout_deleter
 		);
 	}
+
+	// material_descriptror_layout // TODO: maybe I still need to do for each instance
+	{
+		// reads from depth attachment of previous frame
+		// descriptor for texture sampler
+
+		vk::DescriptorSetLayoutBinding uniform_layout_binding = {
+			0, // binding
+			vk::DescriptorType::eUniformBuffer, // descriptorType
+			1, // descriptorCount
+			vk::ShaderStageFlagBits::eFragment ,  //stageFlags 
+			nullptr, // pImmutableSamplers
+		};
+
+		vk::DescriptorSetLayoutBinding albedo_map_layout_binding = {
+			1, // binding
+			vk::DescriptorType::eCombinedImageSampler, // descriptorType
+			1, // descriptorCount
+			vk::ShaderStageFlagBits::eFragment ,  //stageFlags 
+			nullptr, // pImmutableSamplers
+		};
+
+		vk::DescriptorSetLayoutBinding normap_layout_binding = {
+			2, // binding
+			vk::DescriptorType::eCombinedImageSampler, // descriptorType
+			1, // descriptorCount
+			vk::ShaderStageFlagBits::eFragment ,  //stageFlags 
+			nullptr, // pImmutableSamplers
+		};
+
+		std::array<vk::DescriptorSetLayoutBinding, 3> bindings = { uniform_layout_binding, albedo_map_layout_binding , normap_layout_binding };
+
+		vk::DescriptorSetLayoutCreateInfo create_info = {
+			vk::DescriptorSetLayoutCreateFlags(), // flags
+			static_cast<uint32_t>(bindings.size()),
+			bindings.data()
+		};
+
+		material_descriptor_set_layout = VRaii<vk::DescriptorSetLayout>(
+			device.createDescriptorSetLayout(create_info, nullptr),
+			raii_layout_deleter
+		);
+	}
 }
 
 
@@ -846,9 +883,9 @@ void _VulkanRenderer_Impl::createGraphicsPipelines()
 		// no uniform variables or push constants
 		VkPipelineLayoutCreateInfo pipeline_layout_info = {};
 		pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		VkDescriptorSetLayout set_layouts[] = { object_descriptor_set_layout.get(), camera_descriptor_set_layout.get(), light_culling_descriptor_set_layout.get(), intermediate_descriptor_set_layout.get() };
-		pipeline_layout_info.setLayoutCount = 4; // Optional
-		pipeline_layout_info.pSetLayouts = set_layouts; // Optional
+		std::vector<VkDescriptorSetLayout> set_layouts = { object_descriptor_set_layout.get(), camera_descriptor_set_layout.get(), light_culling_descriptor_set_layout.get(), intermediate_descriptor_set_layout.get(), material_descriptor_set_layout.get() };
+		pipeline_layout_info.setLayoutCount = set_layouts.size(); // Optional
+		pipeline_layout_info.pSetLayouts = set_layouts.data(); // Optional
 		pipeline_layout_info.pushConstantRangeCount = 1; // Optional
 		pipeline_layout_info.pPushConstantRanges = &push_constant_range; // Optional
 
@@ -1137,9 +1174,9 @@ void _VulkanRenderer_Impl::createDescriptorPool()
 	std::array<VkDescriptorPoolSize, 3> pool_sizes = {};
 	//std::array<VkDescriptorPoolSize, 2> pool_sizes = {};
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	pool_sizes[0].descriptorCount = 4; // transform buffer & light buffer & camera buffer & light buffer in compute pipeline
+	pool_sizes[0].descriptorCount = 100; // transform buffer & light buffer & camera buffer & light buffer in compute pipeline
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	pool_sizes[1].descriptorCount = 3; // sampler for color map and normal map and depth map from depth prepass
+	pool_sizes[1].descriptorCount = 100; // sampler for color map and normal map and depth map from depth prepass... and so many from scene materials
 	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	pool_sizes[2].descriptorCount = 3; // light visiblity buffer in graphics pipeline and compute pipeline
 
@@ -1147,8 +1184,7 @@ void _VulkanRenderer_Impl::createDescriptorPool()
 	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	pool_info.poolSizeCount = (uint32_t)pool_sizes.size();
 	pool_info.pPoolSizes = pool_sizes.data();
-	pool_info.maxSets = 4; 
-	// TODO: one more in graphics pipeline for light visiblity
+	pool_info.maxSets = 200; 
 	pool_info.flags = 0;
 	//poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 	// TODO: use VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT so I can create a VKGemoetryClass
@@ -1199,10 +1235,10 @@ void _VulkanRenderer_Impl::createSceneObjectDescriptorSet()
 	normalmap_info.imageView = normalmap_image_view.get();
 	normalmap_info.sampler = texture_sampler.get();
 
-	VkDescriptorBufferInfo lights_buffer_info = {};
+	/*VkDescriptorBufferInfo lights_buffer_info = {};
 	lights_buffer_info.buffer = pointlight_buffer.get();
 	lights_buffer_info.offset = 0;
-	lights_buffer_info.range = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(int);
+	lights_buffer_info.range = sizeof(PointLight) * MAX_POINT_LIGHT_COUNT + sizeof(int);*/
 
 	//std::array<VkWriteDescriptorSet, 4> descriptor_writes = {};
 	std::array<VkWriteDescriptorSet, 3> descriptor_writes = {};
@@ -1449,9 +1485,15 @@ void _VulkanRenderer_Impl::createGraphicsCommandBuffers()
 			};
 			vkCmdPushConstants(command_buffers[i], pipeline_layout.get(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pco), &pco);
 
+
+			vkCmdBindPipeline(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline.get());
+
+			std::array<VkDescriptorSet, 4> descriptor_sets = { object_descriptor_set, camera_descriptor_set, light_culling_descriptor_set, intermediate_descriptor_set };
+			vkCmdBindDescriptorSets(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS
+				, pipeline_layout.get(), 0, static_cast<uint32_t>(descriptor_sets.size()), descriptor_sets.data(), 0, nullptr);
+
 			for (const auto& part : model.getMeshParts())
 			{
-				vkCmdBindPipeline(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline.get());
 
 				// bind vertex buffer
 				VkBuffer vertex_buffers[] = { part.vertex_buffer_section.buffer };
@@ -1460,11 +1502,9 @@ void _VulkanRenderer_Impl::createGraphicsCommandBuffers()
 				//vkCmdBindIndexBuffer(command_buffers[i], index_buffer, 0, VK_INDEX_TYPE_UINT16);
 				vkCmdBindIndexBuffer(command_buffers[i], part.index_buffer_section.buffer, part.index_buffer_section.offset, VK_INDEX_TYPE_UINT32);
 
-				std::array<VkDescriptorSet, 4> descriptor_sets = { object_descriptor_set, camera_descriptor_set, light_culling_descriptor_set, intermediate_descriptor_set };
+				std::array<VkDescriptorSet, 1> mesh_descriptor_sets = { part.material_descriptor_set };
 				vkCmdBindDescriptorSets(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS
-					, pipeline_layout.get(), 0, static_cast<uint32_t>(descriptor_sets.size()), descriptor_sets.data(), 0, nullptr);
-				// TODO: better to store vertex buffer and index buffer in a single VkBuffer
-
+					, pipeline_layout.get(), descriptor_sets.size(), static_cast<uint32_t>(mesh_descriptor_sets.size()), mesh_descriptor_sets.data(), 0, nullptr);
 
 				//vkCmdDraw(command_buffers[i], VERTICES.size(), 1, 0, 0);
 				vkCmdDrawIndexed(command_buffers[i], part.index_count, 1, 0, 0, 0);

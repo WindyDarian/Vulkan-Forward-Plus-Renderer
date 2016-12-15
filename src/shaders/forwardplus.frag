@@ -26,8 +26,8 @@ layout(std140, set = 0, binding = 0) uniform SceneObjectUbo
     mat4 model;
 } transform;
 
-layout(set = 0, binding = 1) uniform sampler2D tex_sampler;
-layout(set = 0, binding = 2) uniform sampler2D normal_sampler;
+// layout(set = 0, binding = 1) uniform sampler2D tex_sampler;
+// layout(set = 0, binding = 2) uniform sampler2D normal_sampler;
 
 layout(std140, set = 1, binding = 0) buffer readonly CameraUbo // FIXME: change back to uniform
 {
@@ -49,6 +49,17 @@ layout(std140, set = 2, binding = 1) buffer readonly PointLights // FIXME: chang
 };
 
 layout(set = 3, binding = 0) uniform sampler2D depth_sampler;
+
+layout(std140, set = 4, binding = 0) uniform MaterialUbo
+{
+    int has_albedo_map;
+    int has_normal_map;
+} material;
+
+layout(set = 4, binding = 1) uniform sampler2D albedo_sampler;
+layout(set = 4, binding = 2) uniform sampler2D normal_sampler;
+
+
 
 layout(location = 0) in vec3 frag_color;
 layout(location = 1) in vec2 frag_tex_coord;
@@ -76,13 +87,26 @@ void main()
         out_color = vec4(0.0);
         return;
     }
-    
-    vec4 color_map =  texture(tex_sampler, frag_tex_coord);
-    vec3 diffuse = color_map.rgb;
-    vec3 illuminance = vec3(0.0);
+   
+    vec3 diffuse;
+    if (material.has_albedo_map > 0)
+    {
+        diffuse = texture(albedo_sampler, frag_tex_coord).rgb;
+    }
+    else
+    {
+        diffuse = vec3(1.0);
+    }
 
-    vec3 normal = applyNormalMap(frag_normal, texture(normal_sampler, frag_tex_coord).rgb);
-
+    vec3 normal; 
+    if (material.has_normal_map > 0)
+    {
+        normal = applyNormalMap(frag_normal, texture(normal_sampler, frag_tex_coord).rgb);
+    }
+    else
+    {
+        normal = frag_normal;
+    }
     ivec2 tile_id = ivec2(gl_FragCoord.xy / TILE_SIZE);
     uint tile_index = tile_id.y * push_constants.tile_nums.x + tile_id.x; 
 
@@ -108,6 +132,8 @@ void main()
         return;
     }
     
+    
+    vec3 illuminance = vec3(0.0);
     uint tile_light_num = light_visiblities[tile_index].count;
     for (int i = 0; i < tile_light_num; i++)
 	{

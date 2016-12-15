@@ -73,5 +73,11 @@ namespace util
 	{
 		return glm::abs(a - b) <= SMALL_NUMBER;
 	}
+
+	inline std::string findFolderName(const std::string& str)
+	{
+		return str.substr(0, str.find_last_of("/\\"));
+	}
+
 }
 

@@ -244,6 +244,7 @@ void VContext::createInstance()
 			obj.destroy();
 		}
 	};
+
 }
 
 void VContext::setupDebugCallback()
@@ -352,6 +353,9 @@ void VContext::pickPhysicalDevice()
 	}
 
 	this->physical_device = physial_device;
+
+
+	this->physical_device_properties = static_cast<vk::PhysicalDevice>(physical_device).getProperties();
 }
 
 void VContext::findQueueFamilyIndices()
@@ -403,7 +407,7 @@ void VContext::createLogicalDevice()
 		queue_create_info.pQueuePriorities = &queue_priority;
 		queue_create_infos.push_back(queue_create_info);
 	}
-
+	
 	// Specify used device features
 	VkPhysicalDeviceFeatures device_features = {}; // Everything is by default VK_FALSE
 

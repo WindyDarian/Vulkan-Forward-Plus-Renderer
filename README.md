@@ -106,7 +106,7 @@ make
 
 #### Assets
 * [Chalet Hippolyte Chassande Baroz by Gaël](https://skfb.ly/HDVU)
-* [Sponza modeled by Marko Dabrovic](http://hdri.cgtechniques.com/~sponza/files/Sponza) (CIS565 simplified version) 
+* [Sponza modeled by Marko Dabrovic](http://www.crytek.com/cryengine/cryengine3/downloads) 
 
 #### Tools
 * [RenderDoc](https://github.com/baldurk/renderdoc)  (debugging became a lot easier)
