@@ -25,14 +25,16 @@
 //};
 
 // for test use
-TestSceneConfiguration sponza_full_5_lights
+TestSceneConfiguration sponza_full_10_lights
 {
 	util::getContentPath("sponza_full/sponza.obj"),  //model_file
 	0.01f,  // scale
 	glm::vec3{ -15, -5, -5 },  // min_light_pos
 	glm::vec3{ 15, 20, 5 },  // max_light_pos
 	5.0f,  // radius
-	5  // light num
+	10,  // light num
+	glm::vec3{ 12.7101822f, 1.87933588f, -0.0333303586f },  // camera position
+	glm::quat{ 0.717312694f, -0.00208670134f, 0.696745396f, 0.00202676491f }   // camera rotation
 };
 
 TestSceneConfiguration sponza_full_200_lights
@@ -42,7 +44,9 @@ TestSceneConfiguration sponza_full_200_lights
 	glm::vec3{ -15, -5, -5 },  // min_light_pos
 	glm::vec3{ 15, 20, 5 },  // max_light_pos
 	5.0f,  // radius
-	200  // light num
+	200,  // light num
+	glm::vec3{ 12.7101822f, 1.87933588f, -0.0333303586f },  // camera position
+	glm::quat{ 0.717312694f, -0.00208670134f, 0.696745396f, 0.00202676491f }   // camera rotation
 };
 
 TestSceneConfiguration sponza_full_1000_lights
@@ -52,7 +56,9 @@ TestSceneConfiguration sponza_full_1000_lights
 	glm::vec3{ -15, -5, -5 },  // min_light_pos
 	glm::vec3{ 15, 20, 5 },  // max_light_pos
 	5.0f,  // radius
-	1000  // light num
+	1000,  // light num
+	glm::vec3{ 12.7101822f, 1.87933588f, -0.0333303586f },  // camera position
+	glm::quat{ 0.717312694f, -0.00208670134f, 0.696745396f, 0.00202676491f }   // camera rotation
 };
 
 TestSceneConfiguration sponza_full_1000_small_lights
@@ -62,7 +68,9 @@ TestSceneConfiguration sponza_full_1000_small_lights
 	glm::vec3{ -15, -5, -5 },  // min_light_pos
 	glm::vec3{ 15, 20, 5 },  // max_light_pos
 	2.0f,  // radius
-	1000  // light num
+	1000,  // light num
+	glm::vec3{ 12.7101822f, 1.87933588f, -0.0333303586f },  // camera position
+	glm::quat{ 0.717312694f, -0.00208670134f, 0.696745396f, 0.00202676491f }   // camera rotation
 };
 
 TestSceneConfiguration sponza_full_1000_large_lights
@@ -72,30 +80,46 @@ TestSceneConfiguration sponza_full_1000_large_lights
 	glm::vec3{ -15, -5, -5 },  // min_light_pos
 	glm::vec3{ 15, 20, 5 },  // max_light_pos
 	10.0f,  // radius
-	1000  // light num
+	10000,  // light num
+	glm::vec3{ 12.7101822f, 1.87933588f, -0.0333303586f },  // camera position
+	glm::quat{ 0.717312694f, -0.00208670134f, 0.696745396f, 0.00202676491f }   // camera rotation
 };
 
-TestSceneConfiguration sponza_full_10000_small_lights
+TestSceneConfiguration sponza_full_20000_small_lights
 {
 	util::getContentPath("sponza_full/sponza.obj"),  //model_file
 	0.01f,  // scale
 	glm::vec3{ -15, -5, -5 },  // min_light_pos
 	glm::vec3{ 15, 20, 5 },  // max_light_pos
-	1.0f,  // radius
-	10000  // light num
+	2.0f,  // radius
+	20000,  // light num
+	glm::vec3{ 12.7101822f, 1.87933588f, -0.0333303586f },  // camera position
+	glm::quat{ 0.717312694f, -0.00208670134f, 0.696745396f, 0.00202676491f }   // camera rotation
 };
 
-
-TestSceneConfiguration rungholt_20_lights
+TestSceneConfiguration rungholt_10_lights
 {
 	util::getContentPath("rungholt/rungholt.obj"),  //model_file
 	0.10f,  // scale
 	glm::vec3{ -20, -5, -20 },  // min_light_pos
 	glm::vec3{ 20, 20, 20 },  // max_light_pos
 	10.0f,  // radius
-	20  // light num
+	10,  // light num
+	glm::vec3{ 31.8083534f, 27.5098400f, 36.7743378f },  // camera position
+	glm::quat{ 0.883192122f, -0.292658001f, 0.347898334f, 0.115281112f  }   // camera rotation
 };
 
+TestSceneConfiguration rungholt_200_lights
+{
+	util::getContentPath("rungholt/rungholt.obj"),  //model_file
+	0.10f,  // scale
+	glm::vec3{ -20, -5, -20 },  // min_light_pos
+	glm::vec3{ 20, 20, 20 },  // max_light_pos
+	5.0f,  // radius
+	200,  // light num
+	glm::vec3{ 31.8083534f, 27.5098400f, 36.7743378f },  // camera position
+	glm::quat{ 0.883192122f, -0.292658001f, 0.347898334f, 0.115281112f }   // camera rotation
+};
 
 TestSceneConfiguration rungholt_1000_lights
 {
@@ -104,7 +128,21 @@ TestSceneConfiguration rungholt_1000_lights
 	glm::vec3{ -20, -5, -20 },  // min_light_pos
 	glm::vec3{ 20, 20, 20 },  // max_light_pos
 	5.0f,  // radius
-	1000  // light num
+	1000,  // light num
+	glm::vec3{ 31.8083534f, 27.5098400f, 36.7743378f },  // camera position
+	glm::quat{ 0.883192122f, -0.292658001f, 0.347898334f, 0.115281112f }   // camera rotation
+};
+
+TestSceneConfiguration rungholt_20000_lights
+{
+	util::getContentPath("rungholt/rungholt.obj"),  //model_file
+	0.10f,  // scale
+	glm::vec3{ -20, -5, -20 },  // min_light_pos
+	glm::vec3{ 20, 20, 20 },  // max_light_pos
+	5.0f,  // radius
+	20000,  // light num
+	glm::vec3{ 31.8083534f, 27.5098400f, 36.7743378f },  // camera position
+	glm::quat{ 0.883192122f, -0.292658001f, 0.347898334f, 0.115281112f }   // camera rotation
 };
 
 int main()
@@ -112,7 +150,7 @@ int main()
 	auto result = EXIT_SUCCESS;
 
 	// change this to test different scenes
-	getGlobalTestSceneConfiguration() = sponza_full_200_lights;
+	getGlobalTestSceneConfiguration() = rungholt_20000_lights;
 
 	try
 	{

@@ -1,13 +1,15 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
+const int TILE_SIZE = 16;
+
 struct PointLight {
 	vec3 pos;
 	float radius;
 	vec3 intensity;
 };
 
-#define MAX_POINT_LIGHT_PER_TILE 63
+#define MAX_POINT_LIGHT_PER_TILE 1023
 struct LightVisiblity
 {
 	uint count;
@@ -66,7 +68,6 @@ layout(location = 3) in vec3 frag_pos_world;
 
 layout(location = 0) out vec4 out_color;
 
-const int TILE_SIZE = 16;
 
 vec3 applyNormalMap(vec3 geomnor, vec3 normap)
 {

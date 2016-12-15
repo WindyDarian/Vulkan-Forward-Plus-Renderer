@@ -39,6 +39,8 @@ struct TestSceneConfiguration
 	glm::vec3 max_light_pos;
 	float light_radius;
 	int light_num;
+	glm::vec3 camera_position;
+	glm::quat camera_rotation;
 };
 
 TestSceneConfiguration& getGlobalTestSceneConfiguration();

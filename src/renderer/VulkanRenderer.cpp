@@ -31,7 +31,9 @@
 using util::Vertex;
 
 const int MAX_POINT_LIGHT_COUNT = 20000; //TODO: change it back smaller
-const int MAX_POINT_LIGHT_PER_TILE = 63;
+//const int MAX_POINT_LIGHT_PER_TILE = 63;
+const int MAX_POINT_LIGHT_PER_TILE = 1023;
+// const int TILE_SIZE = 16;
 const int TILE_SIZE = 16;
 
 struct PointLight

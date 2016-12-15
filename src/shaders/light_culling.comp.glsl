@@ -9,7 +9,7 @@ struct PointLight {
 	vec3 intensity;
 };
 
-#define MAX_POINT_LIGHT_PER_TILE 63
+#define MAX_POINT_LIGHT_PER_TILE 1023
 struct LightVisiblity
 {
 	uint count;

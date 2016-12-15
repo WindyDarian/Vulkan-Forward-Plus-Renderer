@@ -323,7 +323,8 @@ private:
 public:
 	_ShowBase_Impl()
 	{
-
+		camera.position = getGlobalTestSceneConfiguration().camera_position;
+		camera.rotation = glm::normalize(getGlobalTestSceneConfiguration().camera_rotation);
 	}
 
 	~_ShowBase_Impl()
