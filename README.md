@@ -23,17 +23,26 @@ Forward plus extends the forward rendering pipeline by adding a light-culling st
 
 Now, let us introduces these three stages in the basic forward plus renderer. In our project, since we use Vulkan, we create three command buffers for each single step.
 
-1. Depth Pre-pass
+* Step 1: Depth Pre-pass
 
 We inplemented this step by creating a pipeline without fragment shader in Vulkan. This enables depth-write and depth test.
 
 ![](screenshots/depth.jpg)
 
-As the picture above shows, this will output a depth map. Which could be used as an input for light culling stage.
+As the picture above shows, this will output a depth map, which could be used as an input for light culling stage.
     
-2. Light Culling
+* Step 2: Light Culling
 
-3. Light Accumulation and Final Shading
+light culling calculates a list of light indices overlapping a tile. In our project, the default tile size is 16 * 16.
+
+As we mentioned above, the depth map generated from the depth prepass stage is used to determine the minimum and maximum depth values within a tile, that is the minimum and maximum depths across the entire tile. 
+
+It is noticable that in Vulkan, we add a compute shader for this stage between renderpass one (depth prepass) and renderpass two (final shading).
+
+* Step 3: Light Accumulation and Final Shading
+
+Lastly, we created another renderpass for final shading, which accumulates all the lights in the light list we calculated for each tile, then we do the final shading based on the results.
+For loading more materials, we run the pipeline for each material group to enable the full scene of sponza.
 
 
 
