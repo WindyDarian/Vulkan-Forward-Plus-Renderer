@@ -83,23 +83,7 @@ W, S, A, D, Q, E: move camera
 Z: toggle debug view
 ```
 
-# Milestones
-
-### Milestone 3 (12/12/2016)
-* Forward+ pipeline:
-  * Compute pipeline
-  * Shared descriptor sets for lights and camera to use compute pipeline output as fragment shader input.
-    * Also used some push constants for the change of tile numbers after resizing window 
-  * Tile frustum light culling
-  * Depth pre-pass (depth pre-pass + depth culling + light culling all done!)
-  * Switch between debug views (HeatMap, Normals, Depth map, etc.)
- 
-### Milestone 2 (11/28/2016)
-* Forward+ framework in progress:
-  * Camera control
-  * Huge amount of Point lights
-  * Normal mapping
-  * Blinn-Phong Shading
+# Milestones : How we finish our project step by step :)
 
 ### Milestone 1 (11/21/2016)
 * Basic Vulkan framework including:
@@ -109,6 +93,28 @@ Z: toggle debug view
   * lambert shading
 * Cross Platform using GLFW & CMake (Windows, Linux) 
 
+### Milestone 2 (11/28/2016)
+* Forward+ framework in progress:
+  * Camera control
+  * Huge amount of Point lights
+  * Normal mapping
+  * Blinn-Phong Shading
+
+### Milestone 3 (12/12/2016)
+* Full version of Forward+ pipeline:
+  * Compute pipeline
+  * Share descriptor sets for lights and camera to use compute pipeline output as fragment shader input.
+    * Also used some push constants for the change of tile numbers after resizing window 
+  * Tile frustum light culling
+  * Depth pre-pass (depth pre-pass + depth culling + light culling all done!)
+  * Switch between debug views (HeatMap, Normals, Depth map, etc.)
+
+### Fianl Milestone (12/15/2016)
+* Make Forward+ Renderer powerful!
+  * Add Load Model Feature, which supports multiple materials and full version of Sponza Model
+  * Refactor code to be clean and documented :)
+  * Detailed Performance Analysis
+  
 # How to Build
 
 Use CMake to build the program.
