@@ -14,7 +14,7 @@ struct LightVisiblity
 	uint lightindices[MAX_POINT_LIGHT_PER_TILE];
 };
 
-layout(push_constant) uniform PushConstantObject 
+layout(push_constant) uniform PushConstantObject
 {
 	ivec2 viewport_size;
 	ivec2 tile_nums;
@@ -68,7 +68,7 @@ layout(location = 3) in vec3 frag_pos_world;
 
 layout(location = 0) out vec4 out_color;
 
-const int TILE_SIZE = 16; 
+const int TILE_SIZE = 16;
 
 vec3 applyNormalMap(vec3 geomnor, vec3 normap)
 {
@@ -87,7 +87,7 @@ void main()
         out_color = vec4(0.0);
         return;
     }
-   
+
     vec3 diffuse;
     if (material.has_albedo_map > 0)
     {
@@ -98,7 +98,7 @@ void main()
         diffuse = vec3(1.0);
     }
 
-    vec3 normal; 
+    vec3 normal;
     if (material.has_normal_map > 0)
     {
         normal = applyNormalMap(frag_normal, texture(normal_sampler, frag_tex_coord).rgb);
@@ -108,18 +108,25 @@ void main()
         normal = frag_normal;
     }
     ivec2 tile_id = ivec2(gl_FragCoord.xy / TILE_SIZE);
-    uint tile_index = tile_id.y * push_constants.tile_nums.x + tile_id.x; 
+    uint tile_index = tile_id.y * push_constants.tile_nums.x + tile_id.x;
 
     // debug view
     if (push_constants.debugview_index > 1)
     {
         if (push_constants.debugview_index == 2)
         {
-            //heat map debug view
-            float intensity = float(light_visiblities[tile_index].count) / MAX_POINT_LIGHT_PER_TILE;
-            out_color = vec4(vec3(intensity, intensity, intensity), 1.0) ; //light culling debug
-        }   
-        else if (push_constants.debugview_index == 3)
+					//heat map debug view
+					float intensity = float(light_visiblities[tile_index].count) / MAX_POINT_LIGHT_PER_TILE;
+					out_color = vec4(vec3(intensity, intensity, intensity), 1.0) ; //light culling debug
+					float minumum = 0.0;
+					float maximum = 1.0;
+					float ratio = 2 * (intensity - minimum) / (maximum - minimum);
+					int b = int(max(0, 255*(1 - ratio)));
+					int r = int(max(0, 255*(ratio - 1)));
+					int g = 255 - b - r;
+		      out_color = vec4(vec3(r,g,b), 1.0);
+				}
+				else if (push_constants.debugview_index == 3)
         {
             // depth debug view
             out_color = vec4(vec3( pre_depth ),1.0);
@@ -131,8 +138,8 @@ void main()
         }
         return;
     }
-    
-    
+
+
     vec3 illuminance = vec3(0.0);
     uint tile_light_num = light_visiblities[tile_index].count;
     for (int i = 0; i < tile_light_num; i++)
@@ -158,7 +165,7 @@ void main()
             illuminance += light.intensity * att * (lambertian * diffuse + specular);
         }
 	}
-    
+
     //heat map with render debug view
     if (push_constants.debugview_index == 1)
     {
@@ -168,11 +175,11 @@ void main()
     }
 
     // render view
-    out_color = vec4(illuminance, 1.0); 
+    out_color = vec4(illuminance, 1.0);
 
     //out_color = vec4(0.0, 0.0, 0.0, 1.0);
     //out_color[light_visiblities[tile_index].count] = 1.0;
-    //out_color = vec4(illuminance, 1.0); 
+    //out_color = vec4(illuminance, 1.0);
     //out_color = vec4(abs(normal), 1.0);
     //out_color = vec4(abs(texture(normal_sampler, frag_tex_coord).rgb), 1.0); // normal map debug view
 }
