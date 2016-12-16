@@ -195,6 +195,8 @@ As for graphics card, the memory is not that large, so after this comparison, we
 
 Use CMake to build the program.
 
+Download [Rungholt model](http://graphics.cs.williams.edu/data/meshes.xml) and put in content folder, if you need it.
+
 #### Windows
 
 1. Make sure you have Vulkan SDK and Visual Studio 2015 or up, then:
@@ -278,7 +280,7 @@ Z: toggle debug view
 
 #### Assets
 * [Chalet Hippolyte Chassande Baroz by Gaël](https://skfb.ly/HDVU)
-* [Sponza modeled by Marko Dabrovic](http://www.crytek.com/cryengine/cryengine3/downloads)
+* [Crytek Sponza](http://www.crytek.com/cryengine/cryengine3/downloads)
 * Rungholt from [McGuire, Computer Graphics Archive, Aug 2011](http://graphics.cs.williams.edu/data)
 
 #### Tools
