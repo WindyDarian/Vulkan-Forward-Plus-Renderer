@@ -2,11 +2,11 @@
 
 ### A final project for University of Pennsylvania, CIS 565: GPU Programming and Architecture
 
-In this project, we created a Forward Plus (tiled forward) renderer in Vulkan using compute shader to deal with light culling. 
+In this project, we created a Forward Plus (tiled forward) renderer in Vulkan using compute shader to deal with light culling.
 
 Our implementation is __~1000%__ faster than regular forward renderer (tested in Vulkan) under the condition of 200 lights.
 
-Yes, Vulkan is really powerful! We learned about Vulkan at SIGGRAPH 2016 at Anaheim, and decided to dive into it at our final project. We learned a lot from [Alexander Overvoorde's](https://vulkan-tutorial.com/) Vulkan Tutorial, great resource! Thanks so much! 
+Yes, Vulkan is really powerful! We learned about Vulkan at SIGGRAPH 2016 at Anaheim, and decided to dive into it at our final project. We learned a lot from [Alexander Overvoorde's](https://vulkan-tutorial.com/) Vulkan Tutorial, great resource! Thanks so much!
 
 Let us give you a very detailed introduction about our project.  :)
 
@@ -21,11 +21,11 @@ Let us give you a very detailed introduction about our project.  :)
  * [Github](https://github.com/xueyinw)
 
 **Tested on: Windows 10 x64, i7-6700K @ 4.00GHz 16GB, GTX 970 4096MB (Personal Desktop)**
- 
+
 # Overview of Forward Plus Technique
 Our ideas of this cool renderer are from this amazing paper: [Forward+: Bringing Deferred Lighting to the Next Level](https://takahiroharada.files.wordpress.com/2015/04/forward_plus.pdf). Thanks so much for the incredible authors!
 
-Forward plus actually is an extension to traditional forward rendering. In forward rendering, it normally limits the number of lights to be valued when shading, which also limits the visibility computation. 
+Forward plus actually is an extension to traditional forward rendering. In forward rendering, it normally limits the number of lights to be valued when shading, which also limits the visibility computation.
 
 Forward plus extends the forward rendering pipeline by adding a light-culling stage before final shading. Basically this pipeline consists of three stages: depth prepass, light culling, and final shading. We will share more about these stages immediately combined with our Vulkan structure. The advantage of this method is that the scene could be rendered with many lights by culling, and storing only lights that contribute to the tile. Definitely a cool technique, right? :)
 
@@ -38,12 +38,12 @@ We inplemented this step by creating a pipeline without fragment shader in Vulka
 ![](screenshots/depth.jpg)
 
 As the picture above shows, this will output a depth map, which could be used as an input for light culling stage.
-    
+
 * Step 2: Light Culling
 
 light culling calculates a list of light indices overlapping a tile. In our project, the default tile size is 16 * 16.
 
-As we mentioned above, the depth map generated from the depth prepass stage is used to determine the minimum and maximum depth values within a tile, that is the minimum and maximum depths across the entire tile. 
+As we mentioned above, the depth map generated from the depth prepass stage is used to determine the minimum and maximum depth values within a tile, that is the minimum and maximum depths across the entire tile.
 
 It is noticable that in Vulkan, we add a compute shader for this stage between renderpass one (depth prepass) and renderpass two (final shading).
 
@@ -74,7 +74,7 @@ For loading more materials, we run the pipeline for each material group to enabl
 |------------------|------------------|
 | ![](screenshots/heatmap2.jpg) | ![](screenshots/depth.jpg) |
 
-For the heatmap part, if the tile in the image is lighter than other places, that means more lights will effect its bounding frustum. 
+For the heatmap part, if the tile in the image is lighter than other places, that means more lights will effect its bounding frustum.
 
 #### Frame Breakdown
 ![](documents/frame_breakdown.png)
@@ -95,7 +95,7 @@ In our analysis, we use two scenes
 
 ## Forward VS Forward Plus
 
-As we mentioned above, for the forward renderer, we need to calculate each light for each fragment for the entire scene, which is definitely not a good enough choice. 
+As we mentioned above, for the forward renderer, we need to calculate each light for each fragment for the entire scene, which is definitely not a good enough choice.
 
 And for Forward Plus, we only need to consider about the list of light we calculated that overlaps a tile.
 
@@ -138,7 +138,7 @@ Alright, then we choose Rungholt scene as our test scene. The thing happens here
 
 ### Different Light Radius
 
-As we mentioned above, forward plus renderer time efficiency is also related to light radius. 
+As we mentioned above, forward plus renderer time efficiency is also related to light radius.
 
 Here we draw a chart to show the case.
 
@@ -151,7 +151,7 @@ When we are using 1000 large lights in the Sponza scene, from the above chart we
 
 After this very careful and detailed comparison, WE FEEL SO PROND TO SEE THE PROGRESS WE MADE ABOUT FORWARD PLUS RENDERER!!!!!!
 
-## Tile Size 
+## Tile Size
 
 Here we draw a chart to show the differences among different tile sizes.
 
@@ -159,9 +159,9 @@ We do our test using Full Version Sponza scene, with 1000 small lights (radius i
 
 ![](documents/Charts/different_tile_size.PNG)
 
-It is worth mentioning that with Vulkan, the FPS is really high, for the different tile sizes: 8x8, 16x16, 32x32, 64x64, 128x128, the FPS are correspondingly 147.49, 203.66, 211.57, 184.84, 131.58. 
+It is worth mentioning that with Vulkan, the FPS is really high, for the different tile sizes: 8x8, 16x16, 32x32, 64x64, 128x128, the FPS are correspondingly 147.49, 203.66, 211.57, 184.84, 131.58.
 
-How to choose our default tile size? We know that in Vulkan, if the tile size is too small, it will cause huge amount of computations during the culling process, since the tile is small, and the frustums as a result are a lot more. 
+How to choose our default tile size? We know that in Vulkan, if the tile size is too small, it will cause huge amount of computations during the culling process, since the tile is small, and the frustums as a result are a lot more.
 But if we increase the tile size to some extent, it will definitely cause each thread to do a huge amount of computations than small tile sizes, which is not optimized as well.
 
 We also notice that with different tile sizes, the percentage of the three stages are different. Let us draw a chart to show our test result.
@@ -187,7 +187,7 @@ We can see that in the chart above, when there are 63 lights per tile, we need 4
 The second is the SSBO (Shader Storage Buffer Object) Comparison:
 ![](documents/Charts/Tile_Capacity2.PNG)
 
-We can see that in this comparison,  we find big difference. When there are 63 lights per tile, the SSBO size is 2,073,600 bytes. But when there are 1023 lights per tile, the SSBO size is 33,145,200 bytes. 
+We can see that in this comparison,  we find big difference. When there are 63 lights per tile, the SSBO size is 2,073,600 bytes. But when there are 1023 lights per tile, the SSBO size is 33,145,200 bytes.
 
 As for graphics card, the memory is not that large, so after this comparison, we find that we better choose small lights per time, which could save a lot of memory, at the same time keep a high FPS.
 
@@ -234,7 +234,7 @@ Z: toggle debug view
   * mesh
   * texture mapping
   * lambert shading
-* Cross Platform using GLFW & CMake (Windows, Linux) 
+* Cross Platform using GLFW & CMake (Windows, Linux)
 
 ### Milestone 2 (11/28/2016)
 * Forward+ framework in progress:
@@ -247,7 +247,7 @@ Z: toggle debug view
 * Full version of Forward+ pipeline:
   * Compute pipeline
   * Share descriptor sets for lights and camera to use compute pipeline output as fragment shader input.
-    * Also used some push constants for the change of tile numbers after resizing window 
+    * Also used some push constants for the change of tile numbers after resizing window
   * Tile frustum light culling
   * Depth pre-pass (depth pre-pass + depth culling + light culling all done!)
   * Switch between debug views (HeatMap, Normals, Depth map, etc.)
@@ -278,7 +278,8 @@ Z: toggle debug view
 
 #### Assets
 * [Chalet Hippolyte Chassande Baroz by Gaël](https://skfb.ly/HDVU)
-* [Sponza modeled by Marko Dabrovic](http://www.crytek.com/cryengine/cryengine3/downloads) 
+* [Sponza modeled by Marko Dabrovic](http://www.crytek.com/cryengine/cryengine3/downloads)
+* Rungholt from [McGuire, Computer Graphics Archive, Aug 2011](http://graphics.cs.williams.edu/data)
 
 #### Tools
 * [RenderDoc](https://github.com/baldurk/renderdoc)  (debugging became a lot easier)
