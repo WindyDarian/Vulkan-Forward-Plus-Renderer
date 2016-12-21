@@ -1,7 +1,10 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-const int TILE_SIZE = 16; // TODO: maybe I can use push constant?
+// TODO: it should be better done in view space
+// TODO: 3d position based clustered shading
+
+const int TILE_SIZE = 16;
 
 struct PointLight {
 	vec3 pos;
@@ -16,7 +19,7 @@ struct LightVisiblity
 	uint lightindices[MAX_POINT_LIGHT_PER_TILE];
 };
 
-layout(push_constant) uniform PushConstantObject 
+layout(push_constant) uniform PushConstantObject
 {
 	ivec2 viewport_size;
 	ivec2 tile_nums;
@@ -54,21 +57,21 @@ struct ViewFrustum
 	vec3 points[8]; // 0-3 near 4-7 far
 };
 
-layout(local_size_x = 32) in; 
+layout(local_size_x = 32) in;
 
 shared ViewFrustum frustum;
 shared uint light_count_for_tile;
 shared float min_depth;
 shared float max_depth;
 
-// Construct view frustum 
+// Construct view frustum
 ViewFrustum createFrustum(ivec2 tile_id)
 {
 
-	mat4 inv_projview = inverse(camera.projview); 
+	mat4 inv_projview = inverse(camera.projview);
 
 	vec2 ndc_size_per_tile = 2.0 * vec2(TILE_SIZE, TILE_SIZE) / push_constants.viewport_size;
-	
+
 	vec2 ndc_pts[4];  // corners of tile in ndc
 	ndc_pts[0] = ndc_upper_left + tile_id * ndc_size_per_tile;  // upper left
 	ndc_pts[1] = vec2(ndc_pts[0].x + ndc_size_per_tile.x, ndc_pts[0].y); // upper right
@@ -76,7 +79,7 @@ ViewFrustum createFrustum(ivec2 tile_id)
 	ndc_pts[3] = vec2(ndc_pts[0].x, ndc_pts[0].y + ndc_size_per_tile.y); // lower left
 
 	ViewFrustum frustum;
-	
+
 	vec4 temp;
 	for (int i = 0; i < 4; i++)
 	{
@@ -91,39 +94,57 @@ ViewFrustum createFrustum(ivec2 tile_id)
 	{
 		//Cax+Cby+Ccz+Cd = 0, planes[i] = (Ca, Cb, Cc, Cd)
 		// temp_normal: normal without normalization
-		temp_normal = cross(frustum.points[i] - camera.cam_pos, frustum.points[i + 1] - camera.cam_pos); 
+		temp_normal = cross(frustum.points[i] - camera.cam_pos, frustum.points[i + 1] - camera.cam_pos);
 		temp_normal = normalize(temp_normal);
 		frustum.planes[i] = vec4(temp_normal, - dot(temp_normal, frustum.points[i]));
 	}
 	// near plane
 	{
-		temp_normal = cross(frustum.points[1] - frustum.points[0], frustum.points[3] - frustum.points[0]); 
+		temp_normal = cross(frustum.points[1] - frustum.points[0], frustum.points[3] - frustum.points[0]);
 		temp_normal = normalize(temp_normal);
 		frustum.planes[4] = vec4(temp_normal, - dot(temp_normal, frustum.points[0]));
 	}
 	// far plane
 	{
-		temp_normal = cross(frustum.points[7] - frustum.points[4], frustum.points[5] - frustum.points[4]); 
+		temp_normal = cross(frustum.points[7] - frustum.points[4], frustum.points[5] - frustum.points[4]);
 		temp_normal = normalize(temp_normal);
 		frustum.planes[5] = vec4(temp_normal, - dot(temp_normal, frustum.points[4]));
 	}
 
 	return frustum;
-} 
+}
 
 bool isCollided(PointLight light, ViewFrustum frustum)
 {
 	bool result = true;
 
-	for (int i = 0; i < 6; i++) 
+    // Step1: sphere-plane test
+	for (int i = 0; i < 6; i++)
 	{
-		if (dot(light.pos, frustum.planes[i].xyz) + frustum.planes[i].w  < - light.radius ) 
+		if (dot(light.pos, frustum.planes[i].xyz) + frustum.planes[i].w  < - light.radius )
 		{
 			result = false;
 			break;
 		}
 	}
-	return result;
+
+    if (!result)
+    {
+        return false;
+    }
+
+    // Step2: bbox corner test (to reduce false positive)
+    vec3 light_bbox_max = light.pos + vec3(light.radius);
+    vec3 light_bbox_min = light.pos - vec3(light.radius);
+    int probe;
+    probe=0; for( int i=0; i<8; i++ ) probe += ((frustum.points[i].x > light_bbox_max.x)?1:0); if( probe==8 ) return false;
+    probe=0; for( int i=0; i<8; i++ ) probe += ((frustum.points[i].x < light_bbox_min.x)?1:0); if( probe==8 ) return false;
+    probe=0; for( int i=0; i<8; i++ ) probe += ((frustum.points[i].y > light_bbox_max.y)?1:0); if( probe==8 ) return false;
+    probe=0; for( int i=0; i<8; i++ ) probe += ((frustum.points[i].y < light_bbox_min.y)?1:0); if( probe==8 ) return false;
+    probe=0; for( int i=0; i<8; i++ ) probe += ((frustum.points[i].z > light_bbox_max.z)?1:0); if( probe==8 ) return false;
+    probe=0; for( int i=0; i<8; i++ ) probe += ((frustum.points[i].z < light_bbox_min.z)?1:0); if( probe==8 ) return false;
+
+	return true;
 }
 
 void main()
@@ -131,9 +152,9 @@ void main()
 	ivec2 tile_id = ivec2(gl_WorkGroupID.xy);
 	uint tile_index = tile_id.y * push_constants.tile_nums.x + tile_id.x;
 
-	// TODO: depth culling??? 
+	// TODO: depth culling???
 
-	if (gl_LocalInvocationIndex == 0) 
+	if (gl_LocalInvocationIndex == 0)
 	{
 		min_depth = 1.0;
 		max_depth = 0.0;
@@ -172,7 +193,7 @@ void main()
 
 	barrier();
 
-	if (gl_LocalInvocationIndex == 0) 
+	if (gl_LocalInvocationIndex == 0)
 	{
 		light_visiblities[tile_index].count = min(MAX_POINT_LIGHT_PER_TILE, light_count_for_tile);
 	}

@@ -13,17 +13,6 @@
 #include <iostream>
 #include <string>
 
-//// for test use
-//TestSceneConfiguration small_sponza
-//{
-//	util::getContentPath("sponza/sponza.obj"),  //model_file
-//	1.0f,  // scale
-//	glm::vec3 { -15, -5, -5 },  // min_light_pos
-//	glm::vec3 { 15, 20, 5 },  // max_light_pos
-//	5.0f,  // radius
-//	200  // light num
-//};
-
 // for test use
 TestSceneConfiguration sponza_full_10_lights
 {

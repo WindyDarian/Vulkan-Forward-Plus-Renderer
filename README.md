@@ -94,6 +94,8 @@ In our analysis, we use two scenes
 
 ## Forward VS Forward Plus
 
+_NOTE: performance comparison is based on commit [e4b440b](https://github.com/WindyDarian/Vulkan-Forward-Plus-Renderer/tree/e4b440b76af5f43b1a3cace830b34432551807d7) (Forward+) and [de332d2](https://github.com/WindyDarian/Vulkan-Forward-Plus-Renderer/tree/de332d2d30c79daa2ebfbc81b244f5d07d43ed6b)_
+
 As we mentioned above, for the forward renderer, we need to calculate each light for each fragment for the entire scene, which is definitely not a good enough choice.
 
 And for Forward Plus, we only need to consider about the list of light we calculated that overlaps a tile.
@@ -126,14 +128,14 @@ First, we choose light num as a variable to dive into forward vs forward plus.
 For the same sponza scene, if we have the same light radius, let's say 5.0f, we could see that:
 * For forward renderer, the time for per frame just increases linearly according to the light num increasement.
 * For forward plus renderer, the time for per frame increases as well, according to the light num increasement.
-* But we can notice that, FORWARD PLUS IS MUCH MUCH FASTER THAN FORWARD RENDERER!!! When the light num is huge, forward plus could be 10 TIMES FASTER than forward renderer.
+* But we can notice that, FORWARD PLUS IS MUCH MUCH FASTER THAN FORWARD SHADING When the light num is huge, forward plus could be 10 TIMES FASTER than forward shading.
 
 Alright, then we choose Rungholt scene as our test scene. The thing happens here is that Rungholt scene is much larger than Sponza scene, and it is vertex heavy. Interesting thing happens!
 ![](documents/Charts/LightNum Compare2.PNG)
-* When the light num is small, forward plus is faster!!! (Only happens at Rungholt 10 lights situation) WHY? This is because when we do forward plus, we need two times vertex transformation, and combined with a compute shader. But for forward renderer, there's not so much passes, which makes its efficiency better than forward plus (but only happens at vertex heavy and very small light num scene).
+* When the light num is small, forward shading is faster!!! (Only happens at Rungholt 10 lights situation) WHY? This is because when we do forward plus, we need two times vertex transformation, and combined with a compute shader. But for forward renderer, there's not so much passes, which makes its efficiency better than forward plus (but only happens at vertex heavy and very small light num scene).
 * For forward renderer, the time for per frame still increases linearly according to the light num increasement. We could see that the time needed for one frame is a lot more than Sponza scene, with the same num of lights and same radius of lights. Also, if the lights arrives 20000, the computer just crashed.
 * For forward plus renderer, the advantage appears more apparantly. We could see that even though this is a large scene and even though it is vertex heavy, forward plus could still deal with this appropriately. And we noticed that the increasement of time per frame is not linearly increased with light num. This is because forward plus is not only affected by light num, but also affected by light radius.
-* FORWARD PLUS IS MUCH MUCH FASTER THAN FORWARD RENDERER!!! When the light num is huge, forward plus could be more than 10 TIMES FASTER than forward renderer.
+* FORWARD PLUS IS MUCH MUCH FASTER THAN FORWARD SHADING When the light num is huge, forward plus could be more than 10 TIMES FASTER than forward renderer.
 
 ### Different Light Radius
 
@@ -226,6 +228,10 @@ W, S, A, D, Q, E: move camera
 Z: toggle debug view
 ```
 
+#### Tips
+
+* Change the line `	getGlobalTestSceneConfiguration() = sponza_full_1000_small_lights; ` in __main.cpp__ to test with different scene and configurations
+* Run the program using RenderDoc to see FPS in realtime (for now). Or you can peek the average FPS at console when the program is closed.
 
 # Milestones : How we finish our project step by step :)
 
