@@ -94,7 +94,7 @@ In our analysis, we use two scenes
 
 ## Forward VS Forward Plus
 
-_NOTE: performance comparison is based on commit [e4b440b](https://github.com/WindyDarian/Vulkan-Forward-Plus-Renderer/tree/e4b440b76af5f43b1a3cace830b34432551807d7) (Forward+) and [de332d2](https://github.com/WindyDarian/Vulkan-Forward-Plus-Renderer/tree/de332d2d30c79daa2ebfbc81b244f5d07d43ed6b)_
+_NOTE: performance comparison is based on commit [e4b440b](https://github.com/WindyDarian/Vulkan-Forward-Plus-Renderer/tree/e4b440b76af5f43b1a3cace830b34432551807d7) (Forward+ shading) and [de332d2](https://github.com/WindyDarian/Vulkan-Forward-Plus-Renderer/tree/de332d2d30c79daa2ebfbc81b244f5d07d43ed6b) (forward shading)_
 
 As we mentioned above, for the forward renderer, we need to calculate each light for each fragment for the entire scene, which is definitely not a good enough choice.
 
