@@ -148,7 +148,7 @@ private:
 	VRaii<vk::DescriptorSetLayout> intermediate_descriptor_set_layout; // which is exclusive to compute queue
 	VRaii<VkPipelineLayout> compute_pipeline_layout;
 	VRaii<VkPipeline> compute_pipeline;
-	vk::CommandBuffer light_culling_command_buffer = VK_NULL_HANDLE;
+	vk::CommandBuffer light_culling_command_buffer = {};
 	//VRaii<vk::PipelineLayout> compute_pipeline_layout;
 	//VRaii<vk::Pipeline> compute_pipeline;
 
@@ -1309,7 +1309,7 @@ void _VulkanRenderer_Impl::createDepthPrePassCommandBuffer()
 	if (depth_prepass_command_buffer)
 	{
 		device.freeCommandBuffers(graphics_command_pool, 1, &depth_prepass_command_buffer);
-		depth_prepass_command_buffer = VK_NULL_HANDLE;
+		depth_prepass_command_buffer = nullptr;
 	}
 
 	// Create depth pre-pass command buffer
@@ -1651,7 +1651,7 @@ void _VulkanRenderer_Impl::createLightCullingCommandBuffer()
 	if (light_culling_command_buffer)
 	{
 		device.freeCommandBuffers(compute_command_pool, 1, &light_culling_command_buffer);
-		light_culling_command_buffer = VK_NULL_HANDLE;
+		light_culling_command_buffer = nullptr;
 	}
 
 	// Create light culling command buffer
@@ -1848,7 +1848,7 @@ void _VulkanRenderer_Impl::drawFrame()
 			1, // singalSemaphoreCount
 			depth_prepass_finished_semaphore.data() // pSingalSemaphores
 		};
-		graphics_queue.submit(1, &submit_info, VK_NULL_HANDLE);
+		graphics_queue.submit(1, &submit_info, nullptr);
 	}
 
 	// submit light culling command buffer
@@ -1864,7 +1864,7 @@ void _VulkanRenderer_Impl::drawFrame()
 			1, // singalSemaphoreCount
 			lightculling_completed_semaphore.data() // pSingalSemaphores
 		};
-		compute_queue.submit(1, &submit_info, VK_NULL_HANDLE);
+		compute_queue.submit(1, &submit_info, nullptr);
 	}
 
 	// 2. Submitting the command buffer

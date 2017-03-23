@@ -19,7 +19,7 @@ public:
 	using obj_t = T;
 
 	VRaii()
-		: object(VK_NULL_HANDLE)
+		: object(nullptr)
 		, deleter([](T&) {})
 	{}
 
@@ -54,7 +54,7 @@ public:
 	//}
 
 	VRaii(VRaii<T>&& other)
-		: object(VK_NULL_HANDLE) // to be swapped to "other"
+		: object(nullptr) // to be swapped to "other"
 		, deleter([](T&) {}) // deleter will be copied in case there is still use for the old container
 	{
 		swap(*this, other);
