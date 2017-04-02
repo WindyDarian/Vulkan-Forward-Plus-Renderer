@@ -17,7 +17,7 @@ const bool ENABLE_VALIDATION_LAYERS = false;
 const bool ENABLE_VALIDATION_LAYERS = true;
 #endif
 
-#define ONE_QUEUE // renderdoc doesn't support multiple queue yet
+//#define ONE_QUEUE // renderdoc doesn't support multiple queue yet
 
 const std::vector<const char*> VALIDATION_LAYERS = {
 	"VK_LAYER_LUNARG_standard_validation"

@@ -80,12 +80,6 @@ vec3 applyNormalMap(vec3 geomnor, vec3 normap)
 
 void main()
 {
-    float pre_depth = texture(depth_sampler, (gl_FragCoord.xy/push_constants.viewport_size) ).x;
-    if (gl_FragCoord.z > pre_depth + 0.0001)
-    {
-        out_color = vec4(0.0);
-        return;
-    }
 
     vec3 diffuse;
     if (material.has_albedo_map > 0)
@@ -129,6 +123,7 @@ void main()
 		else if (push_constants.debugview_index == 3)
         {
             // depth debug view
+            float pre_depth = texture(depth_sampler, (gl_FragCoord.xy/push_constants.viewport_size) ).x;
             out_color = vec4(vec3( pre_depth ),1.0);
         }
         else if (push_constants.debugview_index == 4)

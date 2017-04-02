@@ -160,14 +160,10 @@ private:
 	VRaii<vk::Semaphore> lightculling_completed_semaphore;
 	VRaii<vk::Semaphore> depth_prepass_finished_semaphore;
 
-	// only one image buffer for depth because only one draw operation happens at one time
+	// for depth
 	VRaii<VkImage> depth_image;
 	VRaii<VkDeviceMemory> depth_image_memory;
 	VRaii<VkImageView> depth_image_view;
-	// for depth pre pass
-	VRaii<VkImage> pre_pass_depth_image;
-	VRaii<VkDeviceMemory> pre_pass_depth_image_memory;
-	VRaii<VkImageView> pre_pass_depth_image_view;
 
 	// texture image
 	VRaii<VkImage> texture_image;
@@ -453,7 +449,9 @@ void _VulkanRenderer_Impl::createRenderPasses()
 		depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		depth_attachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-		depth_attachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;  // to be read in compute shader?
+		//depth_attachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;  // to be read in compute shader?
+		depth_attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;  // to be read in compute shader?
+
 
 		VkAttachmentReference depth_attachment_ref = {};
 		depth_attachment_ref.attachment = 0;
@@ -507,11 +505,11 @@ void _VulkanRenderer_Impl::createRenderPasses()
 		VkAttachmentDescription depth_attachment = {};
 		depth_attachment.format = utility.findDepthFormat();
 		depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-		depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 		depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		depth_attachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		depth_attachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 		depth_attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 		VkAttachmentReference color_attachment_ref = {};
@@ -520,7 +518,7 @@ void _VulkanRenderer_Impl::createRenderPasses()
 
 		VkAttachmentReference depth_attachment_ref = {};
 		depth_attachment_ref.attachment = 1;
-		depth_attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		depth_attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 
 		VkSubpassDescription subpass = {};
 		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -822,8 +820,8 @@ void _VulkanRenderer_Impl::createGraphicsPipelines()
 		VkPipelineDepthStencilStateCreateInfo depth_stencil = {};
 		depth_stencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 		depth_stencil.depthTestEnable = VK_TRUE;
-		depth_stencil.depthWriteEnable = VK_TRUE;
-		depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;
+		depth_stencil.depthWriteEnable = VK_FALSE; // not VK_TRUE since we have a depth prepass
+		depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL; //not VK_COMPARE_OP_LESS since we have a depth prepass;
 		depth_stencil.depthBoundsTestEnable = VK_FALSE;
 		depth_stencil.stencilTestEnable = VK_FALSE;
 
@@ -914,55 +912,61 @@ void _VulkanRenderer_Impl::createGraphicsPipelines()
 
 		//-------------------------------------depth prepass pipeline ------------------------------------------------
 
+		{
 
-		auto depth_vert_shader_code = util::readFile(util::getContentPath("depth_vert.spv"));
-		// auto light_culling_comp_shader_code = util::readFile(util::getContentPath("light_culling.comp.spv"));
-		auto depth_vert_shader_module = createShaderModule(depth_vert_shader_code);
-		VkPipelineShaderStageCreateInfo depth_vert_shader_stage_info = {};
-		depth_vert_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-		depth_vert_shader_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
-		depth_vert_shader_stage_info.module = depth_vert_shader_module.get();
-		depth_vert_shader_stage_info.pName = "main";
-		VkPipelineShaderStageCreateInfo depth_shader_stages[] = { depth_vert_shader_stage_info };
+			VkPipelineDepthStencilStateCreateInfo pre_pass_depth_stencil = { depth_stencil };
+			pre_pass_depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;
+			pre_pass_depth_stencil.depthWriteEnable = VK_TRUE;
 
-		std::array<vk::DescriptorSetLayout, 2> depth_set_layouts = { object_descriptor_set_layout.get(), camera_descriptor_set_layout.get() };
+			auto depth_vert_shader_code = util::readFile(util::getContentPath("depth_vert.spv"));
+			// auto light_culling_comp_shader_code = util::readFile(util::getContentPath("light_culling.comp.spv"));
+			auto depth_vert_shader_module = createShaderModule(depth_vert_shader_code);
+			VkPipelineShaderStageCreateInfo depth_vert_shader_stage_info = {};
+			depth_vert_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+			depth_vert_shader_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+			depth_vert_shader_stage_info.module = depth_vert_shader_module.get();
+			depth_vert_shader_stage_info.pName = "main";
+			VkPipelineShaderStageCreateInfo depth_shader_stages[] = { depth_vert_shader_stage_info };
 
-		vk::PipelineLayoutCreateInfo depth_layout_info = {
-			vk::PipelineLayoutCreateFlags(),  // flags
-			static_cast<uint32_t>(depth_set_layouts.size()),  // setLayoutCount
-			depth_set_layouts.data(),  // setlayouts
-			0,  // pushConstantRangeCount
-			nullptr // pushConstantRanges
-		};
-		depth_pipeline_layout = VRaii<vk::PipelineLayout>(
-			device.createPipelineLayout(depth_layout_info, nullptr),
-			raii_pipeline_layout_deleter
-		);
+			std::array<vk::DescriptorSetLayout, 2> depth_set_layouts = { object_descriptor_set_layout.get(), camera_descriptor_set_layout.get() };
 
-		VkGraphicsPipelineCreateInfo depth_pipeline_info = {};
-		depth_pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-		depth_pipeline_info.stageCount = 1;
-		depth_pipeline_info.pStages = depth_shader_stages;
+			vk::PipelineLayoutCreateInfo depth_layout_info = {
+				vk::PipelineLayoutCreateFlags(),  // flags
+				static_cast<uint32_t>(depth_set_layouts.size()),  // setLayoutCount
+				depth_set_layouts.data(),  // setlayouts
+				0,  // pushConstantRangeCount
+				nullptr // pushConstantRanges
+			};
+			depth_pipeline_layout = VRaii<vk::PipelineLayout>(
+				device.createPipelineLayout(depth_layout_info, nullptr),
+				raii_pipeline_layout_deleter
+				);
 
-		depth_pipeline_info.pVertexInputState = &vertex_input_info;
-		depth_pipeline_info.pInputAssemblyState = &input_assembly_info;
-		depth_pipeline_info.pViewportState = &viewport_state_info;
-		depth_pipeline_info.pRasterizationState = &rasterizer;
-		depth_pipeline_info.pMultisampleState = &multisampling;
-		depth_pipeline_info.pDepthStencilState = &depth_stencil;
-		depth_pipeline_info.pColorBlendState = nullptr;
-		depth_pipeline_info.pDynamicState = nullptr; // Optional
-		depth_pipeline_info.layout = depth_pipeline_layout.get();
-		depth_pipeline_info.renderPass = depth_pre_pass.get();
-		depth_pipeline_info.subpass = 0;
-		depth_pipeline_info.basePipelineHandle = graphics_pipeline.get(); // not deriving from existing pipeline
-		depth_pipeline_info.basePipelineIndex = -1; // Optional
-		depth_pipeline_info.flags = VK_PIPELINE_CREATE_DERIVATIVE_BIT;
+			VkGraphicsPipelineCreateInfo depth_pipeline_info = {};
+			depth_pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+			depth_pipeline_info.stageCount = 1;
+			depth_pipeline_info.pStages = depth_shader_stages;
 
-		depth_pipeline = VRaii<vk::Pipeline>(
-			device.createGraphicsPipeline(vk::PipelineCache(), depth_pipeline_info, nullptr),
-			raii_pipeline_deleter
-		);
+			depth_pipeline_info.pVertexInputState = &vertex_input_info;
+			depth_pipeline_info.pInputAssemblyState = &input_assembly_info;
+			depth_pipeline_info.pViewportState = &viewport_state_info;
+			depth_pipeline_info.pRasterizationState = &rasterizer;
+			depth_pipeline_info.pMultisampleState = &multisampling;
+			depth_pipeline_info.pDepthStencilState = &pre_pass_depth_stencil;
+			depth_pipeline_info.pColorBlendState = nullptr;
+			depth_pipeline_info.pDynamicState = nullptr; // Optional
+			depth_pipeline_info.layout = depth_pipeline_layout.get();
+			depth_pipeline_info.renderPass = depth_pre_pass.get();
+			depth_pipeline_info.subpass = 0;
+			depth_pipeline_info.basePipelineHandle = graphics_pipeline.get(); // not deriving from existing pipeline
+			depth_pipeline_info.basePipelineIndex = -1; // Optional
+			depth_pipeline_info.flags = VK_PIPELINE_CREATE_DERIVATIVE_BIT;
+
+			depth_pipeline = VRaii<vk::Pipeline>(
+				device.createGraphicsPipeline(vk::PipelineCache(), depth_pipeline_info, nullptr),
+				raii_pipeline_deleter
+				);
+		}
 	}
 }
 
@@ -1000,7 +1004,7 @@ void _VulkanRenderer_Impl::createFrameBuffers()
 
 	// depth pass frame buffer
 	{
-		std::array<VkImageView, 1> attachments = { pre_pass_depth_image_view.get() };
+		std::array<VkImageView, 1> attachments = { depth_image_view.get() };
 
 		VkFramebufferCreateInfo framebuffer_info = {};
 		framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -1022,23 +1026,16 @@ void _VulkanRenderer_Impl::createFrameBuffers()
 void _VulkanRenderer_Impl::createDepthResources()
 {
 	VkFormat depth_format = utility.findDepthFormat();
-	std::tie(depth_image, depth_image_memory) = utility.createImage(swap_chain_extent.width, swap_chain_extent.height
-		, depth_format
-		, VK_IMAGE_TILING_OPTIMAL
-		, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
-		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-	depth_image_view = utility.createImageView(depth_image.get(), depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
-	utility.transitImageLayout(depth_image.get(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
 	// for depth pre pass and output as texture
-	std::tie(pre_pass_depth_image, pre_pass_depth_image_memory) = utility.createImage(swap_chain_extent.width, swap_chain_extent.height
+	std::tie(depth_image, depth_image_memory) = utility.createImage(swap_chain_extent.width, swap_chain_extent.height
 		, depth_format
 		, VK_IMAGE_TILING_OPTIMAL
 		//, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT  // TODO: if creating another depth image for prepass use, use this only for rendering depth image
 		, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
 		, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-	pre_pass_depth_image_view = utility.createImageView(pre_pass_depth_image.get(), depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
-	utility.transitImageLayout(pre_pass_depth_image.get(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+	depth_image_view = utility.createImageView(depth_image.get(), depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
+	utility.transitImageLayout(depth_image.get(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 }
 
 void _VulkanRenderer_Impl::createTextureSampler()
@@ -1282,7 +1279,7 @@ void _VulkanRenderer_Impl::updateIntermediateDescriptorSet()
 
 		vk::DescriptorImageInfo depth_image_info = {
 			texture_sampler.get(),
-			pre_pass_depth_image_view.get(),
+			depth_image_view.get(),
 			vk::ImageLayout::eShaderReadOnlyOptimal
 		};
 
@@ -1413,9 +1410,9 @@ void _VulkanRenderer_Impl::createGraphicsCommandBuffers()
 			render_pass_info.renderArea.offset = { 0, 0 };
 			render_pass_info.renderArea.extent = swap_chain_extent;
 
-			std::array<VkClearValue, 2> clear_values = {};
+			std::array<VkClearValue, 1> clear_values = {};
 			clear_values[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
-			clear_values[1].depthStencil = { 1.0f, 0 }; // 1.0 is far view plane
+			//clear_values[1].depthStencil = { 1.0f, 0 }; // don't clear with depth prepass
 			render_pass_info.clearValueCount = (uint32_t)clear_values.size();
 			render_pass_info.pClearValues = clear_values.data();
 
@@ -1454,8 +1451,8 @@ void _VulkanRenderer_Impl::createGraphicsCommandBuffers()
 				vkCmdDrawIndexed(command_buffers[i], static_cast<uint32_t>(part.index_count), 1, 0, 0, 0);
 			}
 			vkCmdEndRenderPass(command_buffers[i]);
-			utility.recordTransitImageLayout(command_buffers[i], pre_pass_depth_image.get(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-			
+			//utility.recordTransitImageLayout(command_buffers[i], pre_pass_depth_image.get(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+		
 		}
 
 		auto record_result = vkEndCommandBuffer(command_buffers[i]);
