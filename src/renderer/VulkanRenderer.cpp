@@ -868,7 +868,7 @@ void _VulkanRenderer_Impl::createGraphicsPipelines()
 		VkPipelineLayoutCreateInfo pipeline_layout_info = {};
 		pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 		std::vector<VkDescriptorSetLayout> set_layouts = { object_descriptor_set_layout.get(), camera_descriptor_set_layout.get(), light_culling_descriptor_set_layout.get(), intermediate_descriptor_set_layout.get(), material_descriptor_set_layout.get() };
-		pipeline_layout_info.setLayoutCount = set_layouts.size(); // Optional
+		pipeline_layout_info.setLayoutCount = static_cast<uint32_t>(set_layouts.size()); // Optional
 		pipeline_layout_info.pSetLayouts = set_layouts.data(); // Optional
 		pipeline_layout_info.pushConstantRangeCount = 1; // Optional
 		pipeline_layout_info.pPushConstantRanges = &push_constant_range; // Optional
@@ -1448,14 +1448,14 @@ void _VulkanRenderer_Impl::createGraphicsCommandBuffers()
 
 				std::array<VkDescriptorSet, 1> mesh_descriptor_sets = { part.material_descriptor_set };
 				vkCmdBindDescriptorSets(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS
-					, pipeline_layout.get(), descriptor_sets.size(), static_cast<uint32_t>(mesh_descriptor_sets.size()), mesh_descriptor_sets.data(), 0, nullptr);
+					, pipeline_layout.get(), static_cast<uint32_t>(descriptor_sets.size()), static_cast<uint32_t>(mesh_descriptor_sets.size()), mesh_descriptor_sets.data(), 0, nullptr);
 
 				//vkCmdDraw(command_buffers[i], VERTICES.size(), 1, 0, 0);
-				vkCmdDrawIndexed(command_buffers[i], part.index_count, 1, 0, 0, 0);
+				vkCmdDrawIndexed(command_buffers[i], static_cast<uint32_t>(part.index_count), 1, 0, 0, 0);
 			}
 			vkCmdEndRenderPass(command_buffers[i]);
 			utility.recordTransitImageLayout(command_buffers[i], pre_pass_depth_image.get(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-
+			
 		}
 
 		auto record_result = vkEndCommandBuffer(command_buffers[i]);
@@ -1708,7 +1708,7 @@ void _VulkanRenderer_Impl::createLightCullingCommandBuffer()
 			vk::DependencyFlags(),  // dependencyFlags
 			0,  // memoryBarrierCount
 			nullptr,  // pBUfferMemoryBarriers
-			barriers_before.size(),  // bufferMemoryBarrierCount
+			static_cast<uint32_t>(barriers_before.size()),  // bufferMemoryBarrierCount
 			barriers_before.data(),  // pBUfferMemoryBarriers
 			0,  // imageMemoryBarrierCount
 			nullptr // pImageMemoryBarriers
@@ -1758,7 +1758,7 @@ void _VulkanRenderer_Impl::createLightCullingCommandBuffer()
 			vk::PipelineStageFlagBits::eFragmentShader,
 			vk::DependencyFlags(),
 			0, nullptr,
-			barriers_after.size(), barriers_after.data(), // TODO
+			static_cast<uint32_t>(barriers_after.size()), barriers_after.data(), // TODO
 			0, nullptr
 		);
 

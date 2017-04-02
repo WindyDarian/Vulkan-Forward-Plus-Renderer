@@ -174,7 +174,7 @@ std::tuple<VRaii<VkBuffer>, VRaii<VkDeviceMemory>> VUtility::createBuffer(VkDevi
 	{
 		indices = { static_cast<uint32_t>(sharing_queue_family_index_a) , static_cast<uint32_t>(sharing_queue_family_index_b) };
 		buffer_info.sharingMode = VK_SHARING_MODE_CONCURRENT;
-		buffer_info.queueFamilyIndexCount = indices.size();
+		buffer_info.queueFamilyIndexCount = static_cast<uint32_t>(indices.size());
 		buffer_info.pQueueFamilyIndices = indices.data();
 	}
 	else

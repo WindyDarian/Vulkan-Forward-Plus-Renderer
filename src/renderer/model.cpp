@@ -51,13 +51,9 @@ std::vector<MeshMaterialGroup> loadModel(const std::string& path)
 	std::string err;
 
 	std::string folder = util::findFolderName(path) + "/";
-	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, path.c_str(), folder.c_str()));
+	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, path.c_str(), folder.c_str()))
 	{
-		//throw std::runtime_error(err);  //FIXME: it will throw!!!!
-		if (!err.empty())
-		{
-			throw std::runtime_error(err);
-		}
+		throw std::runtime_error(err);  
 	}
 
 	bool has_vertex_normal = attrib.normals.size() > 0;
