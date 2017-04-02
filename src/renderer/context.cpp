@@ -17,6 +17,8 @@ const bool ENABLE_VALIDATION_LAYERS = false;
 const bool ENABLE_VALIDATION_LAYERS = true;
 #endif
 
+#define ONE_QUEUE // renderdoc doesn't support multiple queue yet
+
 const std::vector<const char*> VALIDATION_LAYERS = {
 	"VK_LAYER_LUNARG_standard_validation"
 };
@@ -77,6 +79,18 @@ QueueFamilyIndices QueueFamilyIndices::findQueueFamilies(VkPhysicalDevice device
 	int i = 0;
 	for (const auto& queuefamily : queuefamilies)
 	{
+#ifdef ONE_QUEUE //TODO: refactor...
+		if (queuefamily.queueCount > 0 && (queuefamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) && (queuefamily.queueFlags & VK_QUEUE_COMPUTE_BIT))
+		{
+			VkBool32 presentSupport = false;
+			vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+			if (queuefamily.queueCount > 0 && presentSupport)
+			{
+				indices.graphics_family = i;
+				indices.present_family = i;
+			}
+		}
+#else
 		if (queuefamily.queueCount > 0 && (queuefamily.queueFlags & VK_QUEUE_GRAPHICS_BIT))
 		{
 			auto support_compute = static_cast<bool>(queuefamily.queueFlags & VK_QUEUE_COMPUTE_BIT);
@@ -90,13 +104,13 @@ QueueFamilyIndices QueueFamilyIndices::findQueueFamilies(VkPhysicalDevice device
 			{
 				std::cout << "Found a graphics queue family, but it doesn't enough queue count" << std::endl;
 			}
-			
+
 			if (support_compute && enough_size)
 			{
 				indices.graphics_family = i;
 			}
 		}
-		
+
 		//if (queuefamily.queueCount > 0 && queuefamily.queueFlags & VK_QUEUE_COMPUTE_BIT)
 		//{
 		//	indices.compute_family = i;
@@ -108,6 +122,9 @@ QueueFamilyIndices QueueFamilyIndices::findQueueFamilies(VkPhysicalDevice device
 		{
 			indices.present_family = i;
 		}
+#endif // ONE_QUEUE
+
+
 
 		if (indices.isComplete()) {
 			break;
@@ -408,8 +425,26 @@ void VContext::createLogicalDevice()
 	QueueFamilyIndices indices = QueueFamilyIndices::findQueueFamilies(physical_device, static_cast<VkSurfaceKHR>(window_surface.get()));
 
 	std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
-	std::vector<int> queue_families = { indices.graphics_family, indices.present_family };
-	std::vector<std::vector<float>> queue_priorties = { {1.0f, 1.0f}, {1.0f} }; // 2 queues in graphics family, 1 used for light cullingf
+
+	std::vector<int> queue_families;// = { indices.graphics_family, indices.present_family };
+	std::vector<std::vector<float>> queue_priorties;// = { { 1.0f, 1.0f },{ 1.0f } }; // 2 queues in graphics family, 1 used for light cullingf
+
+#ifdef ONE_QUEUE
+	queue_families = { indices.graphics_family};
+	queue_priorties = { { 1.0f } }; // 2 queues in graphics family, 1 used for light cullingf
+#else
+	if (indices.graphics_family != indices.present_family)
+	{
+		//TODO: refactor this part of code, use some structs to help queue creatrion
+		queue_families = { indices.graphics_family, indices.present_family };
+		queue_priorties = { { 1.0f, 1.0f },{ 1.0f } }; // 2 queues in graphics family, 1 used for light cullingf
+	}
+	else
+	{
+		queue_families = { indices.graphics_family };
+		queue_priorties = { { 1.0f, 1.0f, 1.0f } };
+	}
+#endif // ONE_QUEUE
 
 	float queue_priority = 1.0f;
 	for (int i = 0; i < queue_families.size(); i++)
@@ -466,9 +501,25 @@ void VContext::createLogicalDevice()
 	};
 	auto device = graphics_device.get();
 
+#ifdef ONE_QUEUE
 	graphics_queue = device.getQueue(indices.graphics_family, 0);
-	present_queue = device.getQueue(indices.present_family, 0);
+	compute_queue = device.getQueue(indices.graphics_family, 0);
+	present_queue = device.getQueue(indices.graphics_family, 0);
+#else
+	graphics_queue = device.getQueue(indices.graphics_family, 0);
 	compute_queue = device.getQueue(indices.graphics_family, 1);
+
+	if (indices.graphics_family != indices.present_family)
+	{
+		// TODO: refactor this part of code, use some structs to help queue creatrion
+		present_queue = device.getQueue(indices.present_family, 0);
+	}
+	else
+	{
+		present_queue = device.getQueue(indices.graphics_family, 2);
+	}
+#endif // ONE_QUEUE
+
 }
 
 void VContext::createCommandPools()
