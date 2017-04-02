@@ -77,15 +77,30 @@ QueueFamilyIndices QueueFamilyIndices::findQueueFamilies(VkPhysicalDevice device
 	int i = 0;
 	for (const auto& queuefamily : queuefamilies)
 	{
-		if (queuefamily.queueCount > 0 && queuefamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+		if (queuefamily.queueCount > 0 && (queuefamily.queueFlags & VK_QUEUE_GRAPHICS_BIT))
 		{
-			indices.graphics_family = i;
-		}
+			auto support_compute = static_cast<bool>(queuefamily.queueFlags & VK_QUEUE_COMPUTE_BIT);
+			auto enough_size = (queuefamily.queueCount >= 2);
 
-		if (queuefamily.queueCount > 0 && queuefamily.queueFlags & VK_QUEUE_COMPUTE_BIT)
-		{
-			indices.compute_family = i;
+			if (!support_compute)
+			{
+				std::cout << "Found a graphics queue family, but it doesn't support compute." << std::endl;
+			}
+			if (!enough_size) // using a second queue to do light culling
+			{
+				std::cout << "Found a graphics queue family, but it doesn't enough queue count" << std::endl;
+			}
+			
+			if (support_compute && enough_size)
+			{
+				indices.graphics_family = i;
+			}
 		}
+		
+		//if (queuefamily.queueCount > 0 && queuefamily.queueFlags & VK_QUEUE_COMPUTE_BIT)
+		//{
+		//	indices.compute_family = i;
+		//}
 
 		VkBool32 presentSupport = false;
 		vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
@@ -392,19 +407,22 @@ void VContext::createLogicalDevice()
 {
 	QueueFamilyIndices indices = QueueFamilyIndices::findQueueFamilies(physical_device, static_cast<VkSurfaceKHR>(window_surface.get()));
 
-	std::vector <VkDeviceQueueCreateInfo> queue_create_infos;
-	std::set<int> queue_families = { indices.graphics_family, indices.present_family, indices.compute_family };
+	std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
+	std::vector<int> queue_families = { indices.graphics_family, indices.present_family };
+	std::vector<std::vector<float>> queue_priorties = { {1.0f, 1.0f}, {1.0f} }; // 2 queues in graphics family, 1 used for light cullingf
 
 	float queue_priority = 1.0f;
-	for (int family : queue_families)
+	for (int i = 0; i < queue_families.size(); i++)
 	{
+		auto family = queue_families[i];
+
 		// Create a graphics queue
 		VkDeviceQueueCreateInfo queue_create_info = {};
 		queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 		queue_create_info.queueFamilyIndex = indices.graphics_family;
-		queue_create_info.queueCount = 1;
+		queue_create_info.queueCount = static_cast<uint32_t>(queue_priorties[i].size());
 
-		queue_create_info.pQueuePriorities = &queue_priority;
+		queue_create_info.pQueuePriorities = queue_priorties[i].data();
 		queue_create_infos.push_back(queue_create_info);
 	}
 	
@@ -450,7 +468,7 @@ void VContext::createLogicalDevice()
 
 	graphics_queue = device.getQueue(indices.graphics_family, 0);
 	present_queue = device.getQueue(indices.present_family, 0);
-	compute_queue = device.getQueue(indices.compute_family, 0);
+	compute_queue = device.getQueue(indices.graphics_family, 1);
 }
 
 void VContext::createCommandPools()
@@ -484,7 +502,7 @@ void VContext::createCommandPools()
 	{
 		VkCommandPoolCreateInfo cmd_pool_info = {};
 		cmd_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-		cmd_pool_info.queueFamilyIndex = indices.compute_family;
+		cmd_pool_info.queueFamilyIndex = indices.graphics_family;
 		cmd_pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
 
@@ -522,7 +540,7 @@ SwapChainSupportDetails SwapChainSupportDetails::querySwapChainSupport(VkPhysica
 	return details;
 }
 
-
+//// for use later
 //std::tuple<VRaii<vk::Image>, VRaii<vk::DeviceMemory>> _VulkanRenderer_Impl::createImage(uint32_t image_width, uint32_t image_height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags memory_properties)
 //{
 //

@@ -1118,7 +1118,7 @@ void _VulkanRenderer_Impl::createUniformBuffers()
 			, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT  // FIXME: change back to uniform
 			, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 			, queue_family_indices.graphics_family
-			, queue_family_indices.compute_family);
+			, 0);//		, queue_family_indices.compute_family);
 	}
 }
 
@@ -1499,9 +1499,6 @@ void _VulkanRenderer_Impl::createSemaphores()
 */
 void _VulkanRenderer_Impl::createComputePipeline()
 {
-	// TODO: I think I should have it as a member
-	auto compute_queue_family_index = queue_family_indices.compute_family;
-
 	// Step 1: Create Pipeline
 	{
 		auto raii_pipeline_layout_deleter = [device = this->device](auto & obj)
@@ -1685,8 +1682,8 @@ void _VulkanRenderer_Impl::createLightCullingCommandBuffer()
 		(
 			vk::AccessFlagBits::eShaderRead,  // srcAccessMask
 			vk::AccessFlagBits::eShaderWrite,  // dstAccessMask
-			static_cast<uint32_t>(queue_family_indices.graphics_family),  // srcQueueFamilyIndex
-			static_cast<uint32_t>(queue_family_indices.compute_family),  // dstQueueFamilyIndex
+			0, //static_cast<uint32_t>(queue_family_indices.graphics_family),  // srcQueueFamilyIndex
+			0, //static_cast<uint32_t>(queue_family_indices.compute_family),  // dstQueueFamilyIndex
 			static_cast<vk::Buffer>(light_visibility_buffer.get()),  // buffer
 			0,  // offset
 			light_visibility_buffer_size  // size
@@ -1695,8 +1692,8 @@ void _VulkanRenderer_Impl::createLightCullingCommandBuffer()
 		(
 			vk::AccessFlagBits::eShaderRead,  // srcAccessMask // FIXME: change back to uniform
 			vk::AccessFlagBits::eShaderWrite,  // dstAccessMask
-			static_cast<uint32_t>(queue_family_indices.graphics_family),  // srcQueueFamilyIndex
-			static_cast<uint32_t>(queue_family_indices.compute_family),  // dstQueueFamilyIndex
+			0, //static_cast<uint32_t>(queue_family_indices.graphics_family),  // srcQueueFamilyIndex
+			0, //static_cast<uint32_t>(queue_family_indices.compute_family),  // dstQueueFamilyIndex
 			static_cast<vk::Buffer>(pointlight_buffer.get()),  // buffer
 			0,  // offset
 			pointlight_buffer_size  // size
@@ -1736,8 +1733,8 @@ void _VulkanRenderer_Impl::createLightCullingCommandBuffer()
 		(
 			vk::AccessFlagBits::eShaderWrite,  // srcAccessMask
 			vk::AccessFlagBits::eShaderRead,  // dstAccessMask
-			static_cast<uint32_t>(queue_family_indices.compute_family), // srcQueueFamilyIndex
-			static_cast<uint32_t>(queue_family_indices.graphics_family),  // dstQueueFamilyIndex
+			0,//static_cast<uint32_t>(queue_family_indices.compute_family), // srcQueueFamilyIndex
+			0,//static_cast<uint32_t>(queue_family_indices.graphics_family),  // dstQueueFamilyIndex
 			static_cast<vk::Buffer>(light_visibility_buffer.get()),  // buffer
 			0,  // offset
 			light_visibility_buffer_size  // size
@@ -1746,8 +1743,8 @@ void _VulkanRenderer_Impl::createLightCullingCommandBuffer()
 		(
 			vk::AccessFlagBits::eShaderWrite,  // srcAccessMask // TODO: change back to uniform
 			vk::AccessFlagBits::eShaderRead,  // dstAccessMask
-			static_cast<uint32_t>(queue_family_indices.compute_family), // srcQueueFamilyIndex
-			static_cast<uint32_t>(queue_family_indices.graphics_family),  // dstQueueFamilyIndex
+			0, //static_cast<uint32_t>(queue_family_indices.compute_family), // srcQueueFamilyIndex
+			0, //static_cast<uint32_t>(queue_family_indices.graphics_family),  // dstQueueFamilyIndex
 			static_cast<vk::Buffer>(pointlight_buffer.get()),  // buffer
 			0,  // offset
 			pointlight_buffer_size  // size
