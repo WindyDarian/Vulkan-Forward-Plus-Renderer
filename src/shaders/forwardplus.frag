@@ -68,6 +68,7 @@ layout(location = 3) in vec3 frag_pos_world;
 
 layout(location = 0) out vec4 out_color;
 
+layout(early_fragment_tests) in; // for early depth test
 
 vec3 applyNormalMap(vec3 geomnor, vec3 normap)
 {
